@@ -1,0 +1,16 @@
+node_modules
+dist
+.output
+.nuxt
+.turbo
+.cache
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+coverage
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
