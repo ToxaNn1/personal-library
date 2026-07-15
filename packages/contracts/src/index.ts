@@ -26,6 +26,8 @@ export const contract = {
   deleteBook: oc
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() })),
+
+  findBookById: oc.input(z.object({ id: z.string().uuid() })).output(BookSchema),
 };
 
 export type Contract = typeof contract;

@@ -20,4 +20,13 @@ export class BookService {
       throw new ORPCError("NOT_FOUND", { message: `Book ${id} not found` });
     }
   }
+  async findById(id: string): Promise<BookEntity> {
+    const book = await this.repo.findById(id);
+
+    if (!book) {
+      throw new ORPCError("NOT_FOUND", { message: `Book ${id} not found` });
+    }
+
+    return book;
+  }
 }

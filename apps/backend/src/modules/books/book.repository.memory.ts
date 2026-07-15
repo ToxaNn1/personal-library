@@ -20,4 +20,8 @@ export class InMemoryBookRepository implements BookRepository {
   async delete(id: string): Promise<boolean> {
     return this.books.delete(id);
   }
+
+  async findById(id: string): Promise<BookEntity | null> {
+    return this.books.get(id) ?? null
+  }
 }

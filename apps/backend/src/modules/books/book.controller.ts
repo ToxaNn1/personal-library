@@ -32,5 +32,11 @@ export function createBookController(service: BookService) {
       await service.remove(input.id);
       return { success: true };
     }),
+
+
+    findBookById: os.findBookById.handler(async ({ input }) => {
+      const book = await service.findById(input.id);
+      return toBookDto(book);
+    }),
   };
 }
