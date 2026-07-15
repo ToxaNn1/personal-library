@@ -14,16 +14,16 @@
   "dependencies": {
     "@hono/node-server": "^1.13.7",
     "@library/contracts": "workspace:*",
+    "@library/db": "workspace:*",
     "@orpc/contract": "^1.0.0",
     "@orpc/server": "^1.0.0",
     "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.6.16",
-    "pg": "^8.22.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
-    "@types/pg": "^8.20.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }
