@@ -15,6 +15,13 @@
       "when": 1785309916300,
       "tag": "0001_unknown_captain_america",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785313973659,
+      "tag": "0002_shiny_green_goblin",
+      "breakpoints": true
     }
   ]
 }
