@@ -3,7 +3,32 @@ import type { Book } from '@library/contracts';
 
 const { $orpc } = useNuxtApp();
 
-const { data: books, refresh } = await useAsyncData("books", () => $orpc.listBooks());
+const page = ref(1);
+const limit = ref(12);
+const sort = ref<"title" | "year" | "createdAt">("createdAt");
+const order = ref<"asc" | "desc">("desc");
+const listSearch = ref("");
+
+const { data, refresh } = await useAsyncData(
+  "books",
+  () =>
+    $orpc.listBooks({
+      page: page.value,
+      limit: limit.value,
+      sort: sort.value,
+      order: order.value,
+      search: listSearch.value.trim() || undefined,
+    }),
+  { watch: [page, limit, sort, order, listSearch] },
+);
+
+const books = computed(() => data.value?.items ?? []);
+const total = computed(() => data.value?.meta.total ?? 0);
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit.value)));
+
+watch([listSearch, sort, order], () => {
+  page.value = 1;
+});
 
 const form = reactive({
   title: "",
@@ -86,7 +111,7 @@ async function removeBook(id: string) {
         >
           Personal Library
         </h1>
-        <p class="mt-3 text-base text-slate-400">{{ books?.length ?? 0 }} books in the catalogue</p>
+        <p class="mt-3 text-base text-slate-400">{{ total }} books in the catalogue</p>
       </header>
 
       <form
@@ -161,13 +186,53 @@ async function removeBook(id: string) {
         {{ error }}
       </p>
 
+      <div class="mb-4 flex flex-wrap items-center gap-3">
+        <input
+          v-model="listSearch"
+          placeholder="Filter by title…"
+          class="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
+        />
+        <select
+          v-model="sort"
+          class="cursor-pointer rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-sky-400 focus:outline-none"
+        >
+          <option value="createdAt">Sort: Newest</option>
+          <option value="title">Sort: Title</option>
+          <option value="year">Sort: Year</option>
+        </select>
+        <button
+          @click="order = order === 'asc' ? 'desc' : 'asc'"
+          class="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+        >
+          {{ order === "asc" ? "↑ Asc" : "↓ Desc" }}
+        </button>
+      </div>
+
       <div class="grid gap-4 sm:grid-cols-2">
         <BookCard v-for="book in books" :key="book.id" :book="book" @delete="removeBook" />
       </div>
 
-      <p v-if="!books || books.length === 0" class="mt-10 text-center text-sm text-slate-500">
-        Жодної книги в каталозі. Додай через форму вище.
+      <p v-if="books.length === 0" class="mt-10 text-center text-sm text-slate-500">
+        Нічого не знайдено.
       </p>
+
+      <div v-if="totalPages > 1" class="mt-8 flex items-center justify-center gap-4">
+        <button
+          :disabled="page <= 1"
+          @click="page--"
+          class="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          ← Prev
+        </button>
+        <span class="text-sm text-slate-400">Page {{ page }} of {{ totalPages }}</span>
+        <button
+          :disabled="page >= totalPages"
+          @click="page++"
+          class="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Next →
+        </button>
+      </div>
     </div>
   </main>
 </template>
