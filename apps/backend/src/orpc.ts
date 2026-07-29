@@ -7,6 +7,8 @@ export const os = implement(contract).use(async ({ next }) => {
   try {
     return await next();
   } catch (err) {
+    if (err instanceof ORPCError) throw err;
+
     if (err instanceof HttpException) {
       throw new ORPCError(err.code, {
         status: err.status,
