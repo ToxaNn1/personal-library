@@ -38,7 +38,7 @@ export class InMemoryBookRepository implements BookRepository {
   }
 
   async create(data: NewBook): Promise<BookEntity> {
-    const book: BookEntity = { id: randomUUID(), createdAt: new Date(), ownerName: null, ...data };
+    const book: BookEntity = { id: randomUUID(), createdAt: new Date(), ownerName: null, shelfKind: null, ...data };
     this.books.set(book.id, book);
     return book;
   }

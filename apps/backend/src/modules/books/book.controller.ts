@@ -13,6 +13,7 @@ function toBookDto(book: BookEntity): Book {
     isbn: book.isbn,
     ownerId: book.ownerId,
     ownerName: book.ownerName,
+    shelfKind: (book.shelfKind as Book["shelfKind"]) ?? null,
   };
 }
 
@@ -27,6 +28,7 @@ export function createBookController(service: BookService) {
       const { items, total } = await service.list({
         ...query,
         ownerId: owner === "mine" ? context.session?.user.id : undefined,
+        viewerId: context.session?.user.id,
       });
 
       return {
@@ -35,8 +37,8 @@ export function createBookController(service: BookService) {
       };
     }),
 
-    findBookById: os.findBookById.handler(async ({ input }) => {
-      const book = await service.findById(input.id);
+    findBookById: os.findBookById.handler(async ({ input, context }) => {
+      const book = await service.findById(input.id, context.session?.user.id);
       return toBookDto(book);
     }),
 

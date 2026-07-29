@@ -6,6 +6,7 @@ export interface BookEntity {
   isbn: string | null;
   ownerId: string | null;
   ownerName: string | null;
+  shelfKind: string | null;
   createdAt: Date;
 }
 
@@ -27,6 +28,7 @@ export interface ListBooksParams {
   author?: string;
   search?: string;
   ownerId?: string;
+  viewerId?: string;
 }
 
 export interface ListBooksResult {

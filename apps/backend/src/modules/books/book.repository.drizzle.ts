@@ -1,4 +1,17 @@
-import { and, asc, books, desc, eq, ilike, sql, user, type DB, type SQL } from "@library/db";
+import {
+  and,
+  asc,
+  books,
+  desc,
+  eq,
+  ilike,
+  shelfItems,
+  shelves,
+  sql,
+  user,
+  type DB,
+  type SQL,
+} from "@library/db";
 import type { BookRepository } from "./book.repository.js";
 import type {
   BookEntity,
@@ -22,8 +35,13 @@ const BOOK_FIELDS = {
   isbn: books.isbn,
   ownerId: books.ownerId,
   ownerName: user.name,
+  shelfKind: shelves.kind,
   createdAt: books.createdAt,
 };
+
+function viewerShelfJoin(viewerId: string | undefined) {
+  return viewerId ? eq(shelfItems.userId, viewerId) : sql`false`;
+}
 
 export class DrizzleBookRepository implements BookRepository {
   constructor(private readonly db: DB) {}
@@ -42,6 +60,8 @@ export class DrizzleBookRepository implements BookRepository {
       .select(BOOK_FIELDS)
       .from(books)
       .leftJoin(user, eq(books.ownerId, user.id))
+      .leftJoin(shelfItems, and(eq(shelfItems.bookId, books.id), viewerShelfJoin(params.viewerId)))
+      .leftJoin(shelves, eq(shelves.id, shelfItems.shelfId))
       .where(where)
       .orderBy(orderBy)
       .limit(params.limit)
@@ -73,11 +93,13 @@ export class DrizzleBookRepository implements BookRepository {
     return deleted.length > 0;
   }
 
-  async findById(id: string): Promise<BookEntity | null> {
+  async findById(id: string, viewerId?: string): Promise<BookEntity | null> {
     const [book] = await this.db
       .select(BOOK_FIELDS)
       .from(books)
       .leftJoin(user, eq(books.ownerId, user.id))
+      .leftJoin(shelfItems, and(eq(shelfItems.bookId, books.id), viewerShelfJoin(viewerId)))
+      .leftJoin(shelves, eq(shelves.id, shelfItems.shelfId))
       .where(eq(books.id, id))
       .limit(1);
     return book ?? null;
