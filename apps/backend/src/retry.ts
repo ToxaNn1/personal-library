@@ -18,9 +18,6 @@ const RETRIABLE_NETWORK_CODES = new Set([
   "UND_ERR_SOCKET",
 ]);
 
-// Only failures that can plausibly succeed on a later attempt are retried.
-// Programmer errors (TypeError, ReferenceError, ...) fail fast so bugs surface
-// immediately instead of being delayed and multiplied.
 export function isRetriable(err: unknown): boolean {
   if (err instanceof HttpException) {
     return err.status >= 500 || err.status === 429;

@@ -33,8 +33,6 @@ export class RateLimiter {
     }
 
     if (count > limit) {
-      // Drop the rejected attempt so a client that keeps hammering does not
-      // keep extending its own window.
       await this.client.zrem(redisKey, member).catch(() => undefined);
       throw new RateLimitError(windowSec);
     }
