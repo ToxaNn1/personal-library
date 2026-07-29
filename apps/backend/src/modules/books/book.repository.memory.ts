@@ -9,6 +9,7 @@ export class InMemoryBookRepository implements BookRepository {
     let rows = [...this.books.values()];
 
     if (params.author) rows = rows.filter((b) => b.author === params.author);
+    if (params.ownerId) rows = rows.filter((b) => b.ownerId === params.ownerId);
     if (params.search) {
       const needle = params.search.toLowerCase();
       rows = rows.filter((b) => b.title.toLowerCase().includes(needle));
@@ -31,7 +32,7 @@ export class InMemoryBookRepository implements BookRepository {
   }
 
   async create(data: NewBook): Promise<BookEntity> {
-    const book: BookEntity = { id: randomUUID(), createdAt: new Date(), ...data };
+    const book: BookEntity = { id: randomUUID(), createdAt: new Date(), ownerName: null, ...data };
     this.books.set(book.id, book);
     return book;
   }

@@ -7,6 +7,8 @@ export const BookSchema = z.object({
   author: z.string(),
   year: z.number().int().nullable(),
   isbn: z.string().nullable(),
+  ownerId: z.string().nullable(),
+  ownerName: z.string().nullable(),
 });
 
 export type Book = z.infer<typeof BookSchema>;
@@ -25,6 +27,7 @@ export const ListBooksInput = z.object({
   order: z.enum(["asc", "desc"]).default("desc"),
   author: z.string().min(1).optional(),
   search: z.string().min(1).optional(),
+  owner: z.enum(["all", "mine"]).default("all"),
 });
 
 export type ListBooksQuery = z.infer<typeof ListBooksInput>;

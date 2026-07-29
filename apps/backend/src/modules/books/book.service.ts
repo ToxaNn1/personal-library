@@ -1,4 +1,4 @@
-import { NotFoundError } from "../../errors.js";
+import { ForbiddenError, NotFoundError } from "../../errors.js";
 import type { Cache } from "../../cache.js";
 import type { BookRepository } from "./book.repository.js";
 import type { BookEntity, ListBooksParams, ListBooksResult, NewBook } from "./book.types.js";
@@ -46,7 +46,9 @@ export class BookService {
     return book;
   }
 
-  async updateBook(id: string, data: Partial<NewBook>): Promise<BookEntity> {
+  async updateBook(id: string, data: Partial<NewBook>, userId: string): Promise<BookEntity> {
+    await this.assertOwner(id, userId);
+
     const updated = await this.repo.updateBook(id, data);
     if (!updated) {
       throw new NotFoundError(`Book ${id} not found`);
@@ -55,12 +57,24 @@ export class BookService {
     return updated;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, userId: string): Promise<void> {
+    await this.assertOwner(id, userId);
+
     const deleted = await this.repo.delete(id);
     if (!deleted) {
       throw new NotFoundError(`Book ${id} not found`);
     }
     await this.invalidate(id);
+  }
+
+  private async assertOwner(id: string, userId: string): Promise<void> {
+    const book = await this.repo.findById(id);
+    if (!book) {
+      throw new NotFoundError(`Book ${id} not found`);
+    }
+    if (book.ownerId !== userId) {
+      throw new ForbiddenError("You can only modify books you added");
+    }
   }
 
   private async invalidate(id: string): Promise<void> {

@@ -4,6 +4,8 @@ export interface BookEntity {
   author: string;
   year: number | null;
   isbn: string | null;
+  ownerId: string | null;
+  ownerName: string | null;
   createdAt: Date;
 }
 
@@ -12,6 +14,7 @@ export interface NewBook {
   author: string;
   year: number | null;
   isbn: string | null;
+  ownerId: string | null;
 }
 
 export interface ListBooksParams {
@@ -21,6 +24,7 @@ export interface ListBooksParams {
   order: "asc" | "desc";
   author?: string;
   search?: string;
+  ownerId?: string;
 }
 
 export interface ListBooksResult {

@@ -8,6 +8,7 @@ import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { db } from "@library/db";
+import { auth } from "./auth.js";
 import { RedisCache, redis } from "./cache.js";
 import { HttpException, RateLimitError } from "./errors.js";
 import { logger } from "./logger.js";
@@ -63,8 +64,6 @@ app.use(
 
 const WRITE_PROCEDURES = ["createBook", "updateBook", "deleteBook"];
 
-// Proxy headers are only trusted when we know a proxy sits in front, otherwise
-// any client could spoof them to get a fresh bucket per request.
 const TRUST_PROXY = process.env.TRUST_PROXY === "true";
 
 function clientKey(c: Context<{ Variables: Variables }>): string {
@@ -87,14 +86,26 @@ app.use("/rpc/*", async (c, next) => {
   await next();
 });
 
+app.use("/api/auth/*", async (c, next) => {
+  const path = c.req.path;
+  if (path.includes("/sign-in") || path.includes("/sign-up")) {
+    await rateLimiter.check("auth", clientKey(c), { limit: 10, windowSec: 60 });
+  }
+  await next();
+});
+
+app.all("/api/auth/*", (c) => auth.handler(c.req.raw));
+
 app.get("/", (c) => c.json({ status: "ok", service: "@library/api" }));
 
 const rpcHandler = new RPCHandler(router);
 
 app.all("/rpc/*", async (c) => {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+
   const { matched, response } = await rpcHandler.handle(c.req.raw, {
     prefix: "/rpc",
-    context: {},
+    context: { session },
   });
   if (matched) return response;
   return c.notFound();

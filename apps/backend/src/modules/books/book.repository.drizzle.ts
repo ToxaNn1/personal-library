@@ -1,5 +1,4 @@
-import { books, type DB } from "@library/db";
-import { and, asc, desc, eq, ilike, sql, type SQL } from "drizzle-orm";
+import { and, asc, books, desc, eq, ilike, sql, user, type DB, type SQL } from "@library/db";
 import type { BookRepository } from "./book.repository.js";
 import type { BookEntity, ListBooksParams, ListBooksResult, NewBook } from "./book.types.js";
 
@@ -9,6 +8,17 @@ const SORT_COLUMNS = {
   createdAt: books.createdAt,
 } as const;
 
+const BOOK_FIELDS = {
+  id: books.id,
+  title: books.title,
+  author: books.author,
+  year: books.year,
+  isbn: books.isbn,
+  ownerId: books.ownerId,
+  ownerName: user.name,
+  createdAt: books.createdAt,
+};
+
 export class DrizzleBookRepository implements BookRepository {
   constructor(private readonly db: DB) {}
 
@@ -16,14 +26,16 @@ export class DrizzleBookRepository implements BookRepository {
     const conditions: SQL[] = [];
     if (params.author) conditions.push(eq(books.author, params.author));
     if (params.search) conditions.push(ilike(books.title, `%${params.search}%`));
+    if (params.ownerId) conditions.push(eq(books.ownerId, params.ownerId));
     const where = conditions.length ? and(...conditions) : undefined;
 
     const column = SORT_COLUMNS[params.sort];
     const orderBy = params.order === "asc" ? asc(column) : desc(column);
 
     const items = await this.db
-      .select()
+      .select(BOOK_FIELDS)
       .from(books)
+      .leftJoin(user, eq(books.ownerId, user.id))
       .where(where)
       .orderBy(orderBy)
       .limit(params.limit)
@@ -39,8 +51,11 @@ export class DrizzleBookRepository implements BookRepository {
   }
 
   async create(data: NewBook): Promise<BookEntity> {
-    const [book] = await this.db.insert(books).values(data).returning();
-    if (!book) throw new Error("INSERT ... RETURNING returned no row");
+    const [inserted] = await this.db.insert(books).values(data).returning({ id: books.id });
+    if (!inserted) throw new Error("INSERT ... RETURNING returned no row");
+
+    const book = await this.findById(inserted.id);
+    if (!book) throw new Error("Inserted book could not be read back");
     return book;
   }
 
@@ -53,12 +68,23 @@ export class DrizzleBookRepository implements BookRepository {
   }
 
   async findById(id: string): Promise<BookEntity | null> {
-    const [book] = await this.db.select().from(books).where(eq(books.id, id)).limit(1);
+    const [book] = await this.db
+      .select(BOOK_FIELDS)
+      .from(books)
+      .leftJoin(user, eq(books.ownerId, user.id))
+      .where(eq(books.id, id))
+      .limit(1);
     return book ?? null;
   }
 
   async updateBook(id: string, data: Partial<NewBook>): Promise<BookEntity | null> {
-    const [book] = await this.db.update(books).set(data).where(eq(books.id, id)).returning();
-    return book ?? null;
+    const [updated] = await this.db
+      .update(books)
+      .set(data)
+      .where(eq(books.id, id))
+      .returning({ id: books.id });
+    if (!updated) return null;
+
+    return this.findById(updated.id);
   }
 }
