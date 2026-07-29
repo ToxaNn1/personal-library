@@ -6,13 +6,15 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { db } from "@library/db";
+import { RedisCache, redis } from "./cache.js";
 import { os } from "./orpc.js";
 import { createBookController } from "./modules/books/book.controller.js";
 import { DrizzleBookRepository } from "./modules/books/book.repository.drizzle.js";
 import { BookService } from "./modules/books/book.service.js";
 
 const bookRepository = new DrizzleBookRepository(db);
-const bookService = new BookService(bookRepository);
+const bookCache = new RedisCache(redis);
+const bookService = new BookService(bookRepository, bookCache);
 
 const router = os.router({
   hello: os.hello.handler(({ input }) => ({ message: `Hello, ${input.name}!` })),
