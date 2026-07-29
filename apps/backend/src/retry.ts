@@ -6,11 +6,33 @@ interface RetryOptions {
   maxMs?: number;
 }
 
+const RETRIABLE_NETWORK_CODES = new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "EPIPE",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_SOCKET",
+]);
+
+// Only failures that can plausibly succeed on a later attempt are retried.
+// Programmer errors (TypeError, ReferenceError, ...) fail fast so bugs surface
+// immediately instead of being delayed and multiplied.
 export function isRetriable(err: unknown): boolean {
   if (err instanceof HttpException) {
     return err.status >= 500 || err.status === 429;
   }
-  return true;
+
+  if (err instanceof Error) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code && RETRIABLE_NETWORK_CODES.has(code)) return true;
+    return err.name === "AbortError" || err.name === "FetchError" || err.name === "TimeoutError";
+  }
+
+  return false;
 }
 
 function equalJitter(attempt: number, baseMs: number, maxMs: number): number {
