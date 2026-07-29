@@ -1,5 +1,6 @@
 import type Redis from "ioredis";
 import { RateLimitError } from "./errors.js";
+import { logger } from "./logger.js";
 
 interface LimitOptions {
   limit: number;
@@ -13,23 +14,28 @@ export class RateLimiter {
     const now = Date.now();
     const cutoff = now - windowSec * 1_000;
     const redisKey = `rl:${scope}:${key}`;
+    const member = `${now}-${Math.random()}`;
 
     let count: number;
     try {
       const results = await this.client
         .multi()
         .zremrangebyscore(redisKey, 0, cutoff)
-        .zadd(redisKey, now, `${now}-${Math.random()}`)
+        .zadd(redisKey, now, member)
         .zcard(redisKey)
         .expire(redisKey, windowSec)
         .exec();
 
       count = Number(results?.[2]?.[1] ?? 0);
-    } catch {
+    } catch (err) {
+      logger.warn({ err, scope, key }, "rate limiter unavailable, allowing request");
       return;
     }
 
     if (count > limit) {
+      // Drop the rejected attempt so a client that keeps hammering does not
+      // keep extending its own window.
+      await this.client.zrem(redisKey, member).catch(() => undefined);
       throw new RateLimitError(windowSec);
     }
   }
