@@ -17,6 +17,8 @@ export interface NewBook {
   ownerId: string | null;
 }
 
+export type BookUpdate = Partial<Omit<NewBook, "ownerId">>;
+
 export interface ListBooksParams {
   page: number;
   limit: number;

@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { BookRepository } from "./book.repository.js";
-import type { BookEntity, ListBooksParams, ListBooksResult, NewBook } from "./book.types.js";
+import type {
+  BookEntity,
+  BookUpdate,
+  ListBooksParams,
+  ListBooksResult,
+  NewBook,
+} from "./book.types.js";
 
 export class InMemoryBookRepository implements BookRepository {
   private readonly books = new Map<string, BookEntity>();
@@ -37,7 +43,9 @@ export class InMemoryBookRepository implements BookRepository {
     return book;
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: string, ownerId: string): Promise<boolean> {
+    const existing = this.books.get(id);
+    if (!existing || existing.ownerId !== ownerId) return false;
     return this.books.delete(id);
   }
 
@@ -45,9 +53,9 @@ export class InMemoryBookRepository implements BookRepository {
     return this.books.get(id) ?? null
   }
 
-  async updateBook(id: string, data: Partial<NewBook>): Promise<BookEntity | null> {
+  async updateBook(id: string, data: BookUpdate, ownerId: string): Promise<BookEntity | null> {
     const existing = this.books.get(id);
-    if (!existing) return null;
+    if (!existing || existing.ownerId !== ownerId) return null;
 
     const updated = { ...existing, ...data };
     this.books.set(id, updated);

@@ -1,9 +1,15 @@
-import type { BookEntity, ListBooksParams, ListBooksResult, NewBook } from "./book.types.js";
+import type {
+  BookEntity,
+  BookUpdate,
+  ListBooksParams,
+  ListBooksResult,
+  NewBook,
+} from "./book.types.js";
 
 export interface BookRepository {
   list(params: ListBooksParams): Promise<ListBooksResult>;
   create(data: NewBook): Promise<BookEntity>;
-  delete(id: string): Promise<boolean>;
-  findById(id: string): Promise<BookEntity | null>
-  updateBook(id: string, data: Partial<NewBook>): Promise<BookEntity | null>
+  findById(id: string): Promise<BookEntity | null>;
+  delete(id: string, ownerId: string): Promise<boolean>;
+  updateBook(id: string, data: BookUpdate, ownerId: string): Promise<BookEntity | null>;
 }

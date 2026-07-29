@@ -1,7 +1,14 @@
 import { ForbiddenError, NotFoundError } from "../../errors.js";
+import type { HttpException } from "../../errors.js";
 import type { Cache } from "../../cache.js";
 import type { BookRepository } from "./book.repository.js";
-import type { BookEntity, ListBooksParams, ListBooksResult, NewBook } from "./book.types.js";
+import type {
+  BookEntity,
+  BookUpdate,
+  ListBooksParams,
+  ListBooksResult,
+  NewBook,
+} from "./book.types.js";
 
 const LIST_TTL = 60;
 const BOOK_TTL = 60;
@@ -46,35 +53,26 @@ export class BookService {
     return book;
   }
 
-  async updateBook(id: string, data: Partial<NewBook>, userId: string): Promise<BookEntity> {
-    await this.assertOwner(id, userId);
+  async updateBook(id: string, data: BookUpdate, userId: string): Promise<BookEntity> {
+    const updated = await this.repo.updateBook(id, data, userId);
+    if (!updated) throw await this.writeDenied(id);
 
-    const updated = await this.repo.updateBook(id, data);
-    if (!updated) {
-      throw new NotFoundError(`Book ${id} not found`);
-    }
     await this.invalidate(id);
     return updated;
   }
 
   async remove(id: string, userId: string): Promise<void> {
-    await this.assertOwner(id, userId);
+    const deleted = await this.repo.delete(id, userId);
+    if (!deleted) throw await this.writeDenied(id);
 
-    const deleted = await this.repo.delete(id);
-    if (!deleted) {
-      throw new NotFoundError(`Book ${id} not found`);
-    }
     await this.invalidate(id);
   }
 
-  private async assertOwner(id: string, userId: string): Promise<void> {
+  private async writeDenied(id: string): Promise<HttpException> {
     const book = await this.repo.findById(id);
-    if (!book) {
-      throw new NotFoundError(`Book ${id} not found`);
-    }
-    if (book.ownerId !== userId) {
-      throw new ForbiddenError("You can only modify books you added");
-    }
+    return book
+      ? new ForbiddenError("You can only modify books you added")
+      : new NotFoundError(`Book ${id} not found`);
   }
 
   private async invalidate(id: string): Promise<void> {

@@ -1,6 +1,12 @@
 import { and, asc, books, desc, eq, ilike, sql, user, type DB, type SQL } from "@library/db";
 import type { BookRepository } from "./book.repository.js";
-import type { BookEntity, ListBooksParams, ListBooksResult, NewBook } from "./book.types.js";
+import type {
+  BookEntity,
+  BookUpdate,
+  ListBooksParams,
+  ListBooksResult,
+  NewBook,
+} from "./book.types.js";
 
 const SORT_COLUMNS = {
   title: books.title,
@@ -59,10 +65,10 @@ export class DrizzleBookRepository implements BookRepository {
     return book;
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: string, ownerId: string): Promise<boolean> {
     const deleted = await this.db
       .delete(books)
-      .where(eq(books.id, id))
+      .where(and(eq(books.id, id), eq(books.ownerId, ownerId)))
       .returning({ id: books.id });
     return deleted.length > 0;
   }
@@ -77,11 +83,11 @@ export class DrizzleBookRepository implements BookRepository {
     return book ?? null;
   }
 
-  async updateBook(id: string, data: Partial<NewBook>): Promise<BookEntity | null> {
+  async updateBook(id: string, data: BookUpdate, ownerId: string): Promise<BookEntity | null> {
     const [updated] = await this.db
       .update(books)
       .set(data)
-      .where(eq(books.id, id))
+      .where(and(eq(books.id, id), eq(books.ownerId, ownerId)))
       .returning({ id: books.id });
     if (!updated) return null;
 
