@@ -10,6 +10,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { db } from "@library/db";
 import { auth } from "./auth.js";
 import { RedisCache, redis } from "./cache.js";
+import { BookCache } from "./modules/books/book.cache.js";
 import { HttpException, RateLimitError } from "./errors.js";
 import { logger } from "./logger.js";
 import { os } from "./orpc.js";
@@ -20,18 +21,24 @@ import { BookService } from "./modules/books/book.service.js";
 import { createShelfController } from "./modules/shelves/shelf.controller.js";
 import { DrizzleShelfRepository } from "./modules/shelves/shelf.repository.drizzle.js";
 import { ShelfService } from "./modules/shelves/shelf.service.js";
+import { createReviewController } from "./modules/reviews/review.controller.js";
+import { DrizzleReviewRepository } from "./modules/reviews/review.repository.drizzle.js";
+import { ReviewService } from "./modules/reviews/review.service.js";
 
 const bookRepository = new DrizzleBookRepository(db);
-const bookCache = new RedisCache(redis);
+const bookCache = new BookCache(new RedisCache(redis));
 const bookService = new BookService(bookRepository, bookCache);
 const shelfRepository = new DrizzleShelfRepository(db);
-const shelfService = new ShelfService(shelfRepository, bookRepository);
+const shelfService = new ShelfService(shelfRepository, bookRepository, bookCache);
+const reviewRepository = new DrizzleReviewRepository(db);
+const reviewService = new ReviewService(reviewRepository, bookRepository, bookCache);
 const rateLimiter = new RateLimiter(redis);
 
 const router = os.router({
   hello: os.hello.handler(({ input }) => ({ message: `Hello, ${input.name}!` })),
   ...createBookController(bookService),
   ...createShelfController(shelfService),
+  ...createReviewController(reviewService),
 });
 
 type Variables = { requestId: string };
@@ -74,6 +81,7 @@ const WRITE_PROCEDURES = [
   "deleteBook",
   "placeBookOnShelf",
   "removeBookFromShelves",
+  "finishAndReview",
 ];
 
 const TRUST_PROXY = process.env.TRUST_PROXY === "true";

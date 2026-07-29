@@ -1,4 +1,5 @@
 import { NotFoundError } from "../../errors.js";
+import type { BookCache } from "../books/book.cache.js";
 import type { BookRepository } from "../books/book.repository.js";
 import type { ShelfRepository } from "./shelf.repository.js";
 import type {
@@ -12,9 +13,14 @@ export class ShelfService {
   constructor(
     private readonly repo: ShelfRepository,
     private readonly books: BookRepository,
+    private readonly bookCache: BookCache,
   ) {}
 
-  list(userId: string): Promise<ShelfEntity[]> {
+  async list(userId: string): Promise<ShelfEntity[]> {
+    const shelves = await this.repo.listForUser(userId);
+    if (shelves.length > 0) return shelves;
+
+    await this.repo.ensureDefaults(userId);
     return this.repo.listForUser(userId);
   }
 
@@ -30,10 +36,15 @@ export class ShelfService {
     const book = await this.books.findById(bookId);
     if (!book) throw new NotFoundError(`Book ${bookId} not found`);
 
-    const shelf = await this.repo.findByKind(userId, kind);
+    let shelf = await this.repo.findByKind(userId, kind);
+    if (!shelf) {
+      await this.repo.ensureDefaults(userId);
+      shelf = await this.repo.findByKind(userId, kind);
+    }
     if (!shelf) throw new NotFoundError(`Shelf ${kind} not found`);
 
     await this.repo.placeBook(userId, shelf.id, bookId);
+    await this.bookCache.invalidate();
 
     const updated = await this.repo.findByKind(userId, kind);
     return updated ?? shelf;
@@ -42,5 +53,7 @@ export class ShelfService {
   async removeBook(userId: string, bookId: string): Promise<void> {
     const removed = await this.repo.removeBook(userId, bookId);
     if (!removed) throw new NotFoundError("This book is not on any of your shelves");
+
+    await this.bookCache.invalidate();
   }
 }

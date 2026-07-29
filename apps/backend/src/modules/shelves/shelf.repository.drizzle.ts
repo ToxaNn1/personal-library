@@ -1,4 +1,16 @@
-import { and, asc, books, count, desc, eq, shelfItems, shelves, sql, type DB } from "@library/db";
+import {
+  and,
+  asc,
+  books,
+  count,
+  DEFAULT_SHELVES,
+  desc,
+  eq,
+  shelfItems,
+  shelves,
+  sql,
+  type DB,
+} from "@library/db";
 import type { ShelfRepository } from "./shelf.repository.js";
 import type {
   ListShelfBooksParams,
@@ -20,6 +32,13 @@ const SHELF_FIELDS = {
 
 export class DrizzleShelfRepository implements ShelfRepository {
   constructor(private readonly db: DB) {}
+
+  async ensureDefaults(userId: string): Promise<void> {
+    await this.db
+      .insert(shelves)
+      .values(DEFAULT_SHELVES.map((shelf) => ({ ...shelf, userId })))
+      .onConflictDoNothing();
+  }
 
   listForUser(userId: string): Promise<ShelfEntity[]> {
     return this.db

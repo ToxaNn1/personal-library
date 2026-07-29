@@ -6,6 +6,7 @@ import type {
 } from "./shelf.types.js";
 
 export interface ShelfRepository {
+  ensureDefaults(userId: string): Promise<void>;
   listForUser(userId: string): Promise<ShelfEntity[]>;
   findByKind(userId: string, kind: ShelfKind): Promise<ShelfEntity | null>;
   listBooks(params: ListShelfBooksParams): Promise<ListShelfBooksResult>;
