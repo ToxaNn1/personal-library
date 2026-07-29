@@ -1,6 +1,6 @@
 import { ForbiddenError, NotFoundError } from "../../errors.js";
 import type { HttpException } from "../../errors.js";
-import type { Cache } from "../../cache.js";
+import type { BookCache } from "./book.cache.js";
 import type { BookRepository } from "./book.repository.js";
 import type {
   BookEntity,
@@ -12,17 +12,15 @@ import type {
 
 const LIST_TTL = 60;
 const BOOK_TTL = 60;
-const VERSION_KEY = "books:ver";
 
 export class BookService {
   constructor(
     private readonly repo: BookRepository,
-    private readonly cache: Cache,
+    private readonly cache: BookCache,
   ) {}
 
   async list(params: ListBooksParams): Promise<ListBooksResult> {
-    const version = (await this.cache.get<number>(VERSION_KEY)) ?? 0;
-    const key = `books:list:v${version}:${JSON.stringify(params)}`;
+    const key = await this.cache.listKey(params);
 
     const cached = await this.cache.get<ListBooksResult>(key);
     if (cached) return cached;
@@ -32,13 +30,13 @@ export class BookService {
     return result;
   }
 
-  async findById(id: string): Promise<BookEntity> {
-    const key = `book:${id}`;
+  async findById(id: string, viewerId?: string): Promise<BookEntity> {
+    const key = await this.cache.bookKey(id, viewerId);
 
     const cached = await this.cache.get<BookEntity>(key);
     if (cached) return cached;
 
-    const book = await this.repo.findById(id);
+    const book = await this.repo.findById(id, viewerId);
     if (!book) {
       throw new NotFoundError(`Book ${id} not found`);
     }
@@ -49,7 +47,7 @@ export class BookService {
 
   async create(data: NewBook): Promise<BookEntity> {
     const book = await this.repo.create(data);
-    await this.cache.incr(VERSION_KEY);
+    await this.cache.invalidate();
     return book;
   }
 
@@ -57,7 +55,7 @@ export class BookService {
     const updated = await this.repo.updateBook(id, data, userId);
     if (!updated) throw await this.writeDenied(id);
 
-    await this.invalidate(id);
+    await this.cache.invalidate();
     return updated;
   }
 
@@ -65,7 +63,7 @@ export class BookService {
     const deleted = await this.repo.delete(id, userId);
     if (!deleted) throw await this.writeDenied(id);
 
-    await this.invalidate(id);
+    await this.cache.invalidate();
   }
 
   private async writeDenied(id: string): Promise<HttpException> {
@@ -73,10 +71,5 @@ export class BookService {
     return book
       ? new ForbiddenError("You can only modify books you added")
       : new NotFoundError(`Book ${id} not found`);
-  }
-
-  private async invalidate(id: string): Promise<void> {
-    await this.cache.del(`book:${id}`);
-    await this.cache.incr(VERSION_KEY);
   }
 }
