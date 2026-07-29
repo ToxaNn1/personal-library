@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { Book } from "@library/contracts";
 
-withDefaults(defineProps<{ book: Book; canDelete?: boolean }>(), { canDelete: false });
-const emit = defineEmits<{ delete: [id: string] }>();
+withDefaults(defineProps<{ book: Book; canDelete?: boolean; canShelve?: boolean }>(), {
+  canDelete: false,
+  canShelve: false,
+});
+const emit = defineEmits<{ delete: [id: string]; shelved: [] }>();
 </script>
 
 <template>
@@ -46,5 +49,12 @@ const emit = defineEmits<{ delete: [id: string] }>();
         <template v-else>From the seed catalogue</template>
       </span>
     </div>
+
+    <ShelfPicker
+      v-if="canShelve"
+      :book-id="book.id"
+      :current="book.shelfKind"
+      @changed="emit('shelved')"
+    />
   </div>
 </template>

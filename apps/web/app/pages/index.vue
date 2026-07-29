@@ -94,6 +94,17 @@ function removeFindedBook(id: string){
   findedBook.value = null
 }
 
+const { data: shelvesData, refresh: refreshShelves } = await useAsyncData(
+  "shelves",
+  () => (userId.value ? $orpc.listShelves() : Promise.resolve([])),
+  { watch: [userId] },
+);
+const shelves = computed(() => shelvesData.value ?? []);
+
+async function onShelved() {
+  await Promise.all([refresh(), refreshShelves()]);
+}
+
 async function removeBook(id: string) {
   try {
     await $orpc.deleteBook({ id });
@@ -121,7 +132,18 @@ async function removeBook(id: string) {
         <p class="mt-3 text-base text-slate-400">{{ total }} books in the catalogue</p>
       </header>
 
-      <AuthPanel @changed="refresh()" />
+      <AuthPanel @changed="onShelved()" />
+
+      <div v-if="userId && shelves.length" class="mb-8 grid gap-3 sm:grid-cols-3">
+        <div
+          v-for="shelf in shelves"
+          :key="shelf.id"
+          class="rounded-xl border border-white/10 bg-white/5 p-4 text-center backdrop-blur-md"
+        >
+          <p class="text-2xl font-semibold text-slate-100">{{ shelf.bookCount }}</p>
+          <p class="mt-1 text-xs uppercase tracking-wide text-slate-400">{{ shelf.name }}</p>
+        </div>
+      </div>
 
       <form
         v-if="userId"
@@ -196,8 +218,10 @@ async function removeBook(id: string) {
         v-if="findedBook"
         :book="findedBook"
         :can-delete="findedBook.ownerId !== null && findedBook.ownerId === userId"
+        :can-shelve="!!userId"
         class="mb-8"
         @delete="removeFindedBook"
+        @shelved="onShelved"
       />
 
       <p
@@ -259,7 +283,9 @@ async function removeBook(id: string) {
           :key="book.id"
           :book="book"
           :can-delete="book.ownerId !== null && book.ownerId === userId"
+          :can-shelve="!!userId"
           @delete="removeBook"
+          @shelved="onShelved"
         />
       </div>
 
