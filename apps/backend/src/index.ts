@@ -17,15 +17,21 @@ import { RateLimiter } from "./rate-limit.js";
 import { createBookController } from "./modules/books/book.controller.js";
 import { DrizzleBookRepository } from "./modules/books/book.repository.drizzle.js";
 import { BookService } from "./modules/books/book.service.js";
+import { createShelfController } from "./modules/shelves/shelf.controller.js";
+import { DrizzleShelfRepository } from "./modules/shelves/shelf.repository.drizzle.js";
+import { ShelfService } from "./modules/shelves/shelf.service.js";
 
 const bookRepository = new DrizzleBookRepository(db);
 const bookCache = new RedisCache(redis);
 const bookService = new BookService(bookRepository, bookCache);
+const shelfRepository = new DrizzleShelfRepository(db);
+const shelfService = new ShelfService(shelfRepository, bookRepository);
 const rateLimiter = new RateLimiter(redis);
 
 const router = os.router({
   hello: os.hello.handler(({ input }) => ({ message: `Hello, ${input.name}!` })),
   ...createBookController(bookService),
+  ...createShelfController(shelfService),
 });
 
 type Variables = { requestId: string };
@@ -62,7 +68,13 @@ app.use(
   }),
 );
 
-const WRITE_PROCEDURES = ["createBook", "updateBook", "deleteBook"];
+const WRITE_PROCEDURES = [
+  "createBook",
+  "updateBook",
+  "deleteBook",
+  "placeBookOnShelf",
+  "removeBookFromShelves",
+];
 
 const TRUST_PROXY = process.env.TRUST_PROXY === "true";
 

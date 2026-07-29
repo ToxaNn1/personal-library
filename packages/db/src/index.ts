@@ -1,3 +1,3 @@
 export * from "./schema.js";
 export { db, pool, type DB } from "./client.js";
-export { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+export { and, asc, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";

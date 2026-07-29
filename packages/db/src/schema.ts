@@ -2,6 +2,7 @@ import { integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema.js";
 
 export * from "./auth-schema.js";
+export * from "./shelf-schema.js";
 
 export const books = pgTable("books", {
   id: uuid("id").primaryKey().defaultRandom(),

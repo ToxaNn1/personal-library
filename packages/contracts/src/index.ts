@@ -41,6 +41,28 @@ export const ListBooksOutput = z.object({
   }),
 });
 
+export const ShelfKindSchema = z.enum(["to_read", "reading", "finished", "custom"]);
+export type ShelfKind = z.infer<typeof ShelfKindSchema>;
+
+export const ShelfSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  kind: ShelfKindSchema,
+  bookCount: z.number().int(),
+});
+
+export type Shelf = z.infer<typeof ShelfSchema>;
+
+export const ShelfBookSchema = BookSchema.omit({ ownerId: true, ownerName: true }).extend({
+  addedAt: z.string(),
+});
+
+export const ListShelfBooksInput = z.object({
+  kind: ShelfKindSchema,
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 export const contract = {
   hello: oc.input(z.object({ name: z.string().min(1) })).output(z.object({ message: z.string() })),
 
@@ -55,6 +77,23 @@ export const contract = {
   findBookById: oc.input(z.object({ id: z.string().uuid() })).output(BookSchema),
 
   updateBook: oc.input(CreateBookInput.partial().extend({id: z.string().uuid()})).output(BookSchema),
+
+  listShelves: oc.output(z.array(ShelfSchema)),
+
+  listShelfBooks: oc.input(ListShelfBooksInput).output(
+    z.object({
+      items: z.array(ShelfBookSchema),
+      meta: z.object({ page: z.number().int(), limit: z.number().int(), total: z.number().int() }),
+    }),
+  ),
+
+  placeBookOnShelf: oc
+    .input(z.object({ bookId: z.string().uuid(), kind: ShelfKindSchema }))
+    .output(ShelfSchema),
+
+  removeBookFromShelves: oc
+    .input(z.object({ bookId: z.string().uuid() }))
+    .output(z.object({ success: z.boolean() })),
 };
 
 export type Contract = typeof contract;
