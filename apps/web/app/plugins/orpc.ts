@@ -8,6 +8,7 @@ export default defineNuxtPlugin(() => {
 
   const link = new RPCLink({
     url: `${config.public.apiBaseUrl}/rpc`,
+    fetch: (request, init) => globalThis.fetch(request, { ...init, credentials: "include" }),
   });
 
   const client: ContractRouterClient<typeof contract> = createORPCClient(link);

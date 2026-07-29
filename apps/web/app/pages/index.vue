@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import type { Book } from '@library/contracts';
 
-const { $orpc } = useNuxtApp();
+const { $orpc, $auth } = useNuxtApp();
+const session = $auth.useSession();
+const userId = computed(() => session.value.data?.user.id ?? null);
 
 const page = ref(1);
 const limit = ref(12);
 const sort = ref<"title" | "year" | "createdAt">("createdAt");
 const order = ref<"asc" | "desc">("desc");
 const listSearch = ref("");
+const tab = ref<"all" | "mine">("all");
 
 const { data, refresh } = await useAsyncData(
   "books",
@@ -18,15 +21,16 @@ const { data, refresh } = await useAsyncData(
       sort: sort.value,
       order: order.value,
       search: listSearch.value.trim() || undefined,
+      owner: tab.value,
     }),
-  { watch: [page, limit, sort, order, listSearch] },
+  { watch: [page, limit, sort, order, listSearch, tab] },
 );
 
 const books = computed(() => data.value?.items ?? []);
 const total = computed(() => data.value?.meta.total ?? 0);
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit.value)));
 
-watch([listSearch, sort, order], () => {
+watch([listSearch, sort, order, tab], () => {
   page.value = 1;
 });
 
@@ -34,6 +38,7 @@ const form = reactive({
   title: "",
   author: "",
   year: null as number | null,
+  isbn: "",
 });
 
 const bookId = ref('')
@@ -52,10 +57,12 @@ async function addBook() {
       title: form.title.trim(),
       author: form.author.trim(),
       year: form.year,
+      isbn: form.isbn.trim() || null,
     });
     form.title = "";
     form.author = "";
     form.year = null;
+    form.isbn = "";
     await refresh();
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Failed to add book";
@@ -114,9 +121,12 @@ async function removeBook(id: string) {
         <p class="mt-3 text-base text-slate-400">{{ total }} books in the catalogue</p>
       </header>
 
+      <AuthPanel @changed="refresh()" />
+
       <form
+        v-if="userId"
         @submit.prevent="addBook"
-        class="mb-10 grid gap-3 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md sm:grid-cols-[1fr_1fr_120px_auto]"
+        class="mb-10 grid gap-3 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md sm:grid-cols-[1fr_1fr_110px_150px_auto]"
       >
         <input
           v-model="form.title"
@@ -136,6 +146,11 @@ async function removeBook(id: string) {
           min="0"
           max="9999"
           placeholder="Year"
+          class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
+        />
+        <input
+          v-model="form.isbn"
+          placeholder="ISBN"
           class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
         />
         <button
@@ -177,7 +192,13 @@ async function removeBook(id: string) {
         </button>
       </form>
 
-      <BookCard v-if="findedBook" :book="findedBook" class="mb-8" @delete="removeFindedBook" />
+      <BookCard
+        v-if="findedBook"
+        :book="findedBook"
+        :can-delete="findedBook.ownerId !== null && findedBook.ownerId === userId"
+        class="mb-8"
+        @delete="removeFindedBook"
+      />
 
       <p
         v-if="error"
@@ -185,6 +206,30 @@ async function removeBook(id: string) {
       >
         {{ error }}
       </p>
+
+      <p
+        v-if="!userId"
+        class="mb-10 rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm text-slate-400 backdrop-blur-md"
+      >
+        Sign in to add books to the catalogue.
+      </p>
+
+      <div class="mb-4 flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1 backdrop-blur-md">
+        <button
+          v-for="t in (['all', 'mine'] as const)"
+          :key="t"
+          :disabled="t === 'mine' && !userId"
+          @click="tab = t"
+          class="flex-1 cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
+          :class="
+            tab === t
+              ? 'bg-gradient-to-br from-sky-400 to-fuchsia-400 text-slate-950'
+              : 'text-slate-300 hover:bg-white/10'
+          "
+        >
+          {{ t === "all" ? "All books" : "My books" }}
+        </button>
+      </div>
 
       <div class="mb-4 flex flex-wrap items-center gap-3">
         <input
@@ -209,11 +254,17 @@ async function removeBook(id: string) {
       </div>
 
       <div class="grid gap-4 sm:grid-cols-2">
-        <BookCard v-for="book in books" :key="book.id" :book="book" @delete="removeBook" />
+        <BookCard
+          v-for="book in books"
+          :key="book.id"
+          :book="book"
+          :can-delete="book.ownerId !== null && book.ownerId === userId"
+          @delete="removeBook"
+        />
       </div>
 
       <p v-if="books.length === 0" class="mt-10 text-center text-sm text-slate-500">
-        Нічого не знайдено.
+        No books match your filters.
       </p>
 
       <div v-if="totalPages > 1" class="mt-8 flex items-center justify-center gap-4">
