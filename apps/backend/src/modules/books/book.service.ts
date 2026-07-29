@@ -1,4 +1,4 @@
-import { ORPCError } from "@orpc/server";
+import { NotFoundError } from "../../errors.js";
 import type { Cache } from "../../cache.js";
 import type { BookRepository } from "./book.repository.js";
 import type { BookEntity, ListBooksParams, ListBooksResult, NewBook } from "./book.types.js";
@@ -33,7 +33,7 @@ export class BookService {
 
     const book = await this.repo.findById(id);
     if (!book) {
-      throw new ORPCError("NOT_FOUND", { message: `Book ${id} not found` });
+      throw new NotFoundError(`Book ${id} not found`);
     }
 
     await this.cache.set(key, book, BOOK_TTL);
@@ -49,7 +49,7 @@ export class BookService {
   async updateBook(id: string, data: Partial<NewBook>): Promise<BookEntity> {
     const updated = await this.repo.updateBook(id, data);
     if (!updated) {
-      throw new ORPCError("NOT_FOUND", { message: `Book ${id} not found` });
+      throw new NotFoundError(`Book ${id} not found`);
     }
     await this.invalidate(id);
     return updated;
@@ -58,7 +58,7 @@ export class BookService {
   async remove(id: string): Promise<void> {
     const deleted = await this.repo.delete(id);
     if (!deleted) {
-      throw new ORPCError("NOT_FOUND", { message: `Book ${id} not found` });
+      throw new NotFoundError(`Book ${id} not found`);
     }
     await this.invalidate(id);
   }
