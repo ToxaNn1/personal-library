@@ -3,6 +3,7 @@ import { user } from "./auth-schema.js";
 
 export * from "./auth-schema.js";
 export * from "./shelf-schema.js";
+export * from "./review-schema.js";
 
 export const books = pgTable("books", {
   id: uuid("id").primaryKey().defaultRandom(),
