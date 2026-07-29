@@ -1,9 +1,16 @@
 import { contract } from "@library/contracts";
 import { ORPCError, implement } from "@orpc/server";
-import { HttpException } from "./errors.js";
+import type { Session } from "./auth.js";
+import { HttpException, UnauthorisedError } from "./errors.js";
 import { logger } from "./logger.js";
 
-export const os = implement(contract).use(async ({ next }) => {
+export interface AppContext {
+  session: Session | null;
+}
+
+const base = implement(contract).$context<AppContext>();
+
+export const os = base.use(async ({ next }) => {
   try {
     return await next();
   } catch (err) {
@@ -23,4 +30,11 @@ export const os = implement(contract).use(async ({ next }) => {
       message: "Something went wrong",
     });
   }
+});
+
+export const authed = os.use(async ({ context, next }) => {
+  if (!context.session) {
+    throw new UnauthorisedError("Sign in to perform this action");
+  }
+  return next({ context: { user: context.session.user } });
 });
