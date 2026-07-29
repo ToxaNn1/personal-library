@@ -2,8 +2,9 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 import { serve } from "@hono/node-server";
+import { getConnInfo } from "@hono/node-server/conninfo";
 import { RPCHandler } from "@orpc/server/fetch";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { db } from "@library/db";
@@ -62,15 +63,27 @@ app.use(
 
 const WRITE_PROCEDURES = ["createBook", "updateBook", "deleteBook"];
 
+// Proxy headers are only trusted when we know a proxy sits in front, otherwise
+// any client could spoof them to get a fresh bucket per request.
+const TRUST_PROXY = process.env.TRUST_PROXY === "true";
+
+function clientKey(c: Context<{ Variables: Variables }>): string {
+  if (TRUST_PROXY) {
+    const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+    const real = c.req.header("x-real-ip")?.trim();
+    if (forwarded) return forwarded;
+    if (real) return real;
+  }
+
+  const socket = getConnInfo(c).remote.address;
+  return socket ?? "unknown";
+}
+
 app.use("/rpc/*", async (c, next) => {
   const procedure = c.req.path.replace("/rpc/", "");
   if (!WRITE_PROCEDURES.includes(procedure)) return next();
 
-  const ip =
-    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
-    c.req.header("x-real-ip") ??
-    "unknown";
-  await rateLimiter.check("write", ip, { limit: 20, windowSec: 60 });
+  await rateLimiter.check("write", clientKey(c), { limit: 20, windowSec: 60 });
   await next();
 });
 
