@@ -30,6 +30,12 @@ import { GenreService } from "./modules/genres/genre.service.js";
 import { createStatsController } from "./modules/stats/stats.controller.js";
 import { DrizzleStatsRepository } from "./modules/stats/stats.repository.drizzle.js";
 import { StatsService } from "./modules/stats/stats.service.js";
+import { createRecommendationController } from "./modules/recommendations/recommendation.controller.js";
+import { DrizzleRecommendationRepository } from "./modules/recommendations/recommendation.repository.drizzle.js";
+import { RecommendationService } from "./modules/recommendations/recommendation.service.js";
+import { createSocialController } from "./modules/social/social.controller.js";
+import { DrizzleSocialRepository } from "./modules/social/social.repository.drizzle.js";
+import { SocialService } from "./modules/social/social.service.js";
 import { createReviewController } from "./modules/reviews/review.controller.js";
 import { DrizzleReviewRepository } from "./modules/reviews/review.repository.drizzle.js";
 import { ReviewService } from "./modules/reviews/review.service.js";
@@ -43,6 +49,8 @@ const reviewRepository = new DrizzleReviewRepository(db);
 const reviewService = new ReviewService(reviewRepository, bookRepository, bookCache);
 const genreService = new GenreService(new DrizzleGenreRepository(db));
 const statsService = new StatsService(new DrizzleStatsRepository(db));
+const recommendationService = new RecommendationService(new DrizzleRecommendationRepository(db));
+const socialService = new SocialService(new DrizzleSocialRepository(db));
 const rateLimiter = new RateLimiter(redis);
 
 const router = os.router({
@@ -52,6 +60,8 @@ const router = os.router({
   ...createReviewController(reviewService),
   ...createGenreController(genreService),
   ...createStatsController(statsService),
+  ...createRecommendationController(recommendationService),
+  ...createSocialController(socialService),
 });
 
 type Variables = { requestId: string };
@@ -95,6 +105,8 @@ const WRITE_PROCEDURES = [
   "placeBookOnShelf",
   "removeBookFromShelves",
   "finishAndReview",
+  "followUser",
+  "unfollowUser",
 ];
 
 const TRUST_PROXY = env.TRUST_PROXY;

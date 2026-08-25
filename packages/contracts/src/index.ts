@@ -108,6 +108,38 @@ export const YearStatsSchema = z.object({
 
 export type YearStats = z.infer<typeof YearStatsSchema>;
 
+export const RecommendationSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  author: z.string(),
+  year: z.number().int().nullable(),
+  pages: z.number().int().nullable(),
+  matchedGenres: z.array(z.string()),
+  score: z.number().int(),
+});
+
+export type Recommendation = z.infer<typeof RecommendationSchema>;
+
+export const PersonSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  booksFinished: z.number().int(),
+  isFollowing: z.boolean(),
+});
+
+export type Person = z.infer<typeof PersonSchema>;
+
+export const FeedItemSchema = z.object({
+  userId: z.string(),
+  userName: z.string(),
+  bookId: z.string().uuid(),
+  title: z.string(),
+  author: z.string(),
+  startedAt: z.string(),
+});
+
+export type FeedItem = z.infer<typeof FeedItemSchema>;
+
 export const contract = {
   hello: oc
     .route({ method: "GET", path: "/hello" })
@@ -191,6 +223,25 @@ export const contract = {
         years: z.array(YearStatsSchema),
       }),
     ),
+
+  recommendations: oc
+    .route({ method: "GET", path: "/recommendations" })
+    .input(z.object({ limit: z.coerce.number().int().min(1).max(20).default(6) }))
+    .output(z.array(RecommendationSchema)),
+
+  listPeople: oc.route({ method: "GET", path: "/people" }).output(z.array(PersonSchema)),
+
+  followUser: oc
+    .route({ method: "PUT", path: "/following/{userId}" })
+    .input(z.object({ userId: z.string().min(1) }))
+    .output(z.object({ success: z.boolean() })),
+
+  unfollowUser: oc
+    .route({ method: "DELETE", path: "/following/{userId}" })
+    .input(z.object({ userId: z.string().min(1) }))
+    .output(z.object({ success: z.boolean() })),
+
+  friendsReading: oc.route({ method: "GET", path: "/feed" }).output(z.array(FeedItemSchema)),
 };
 
 export type Contract = typeof contract;

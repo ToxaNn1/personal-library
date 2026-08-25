@@ -111,8 +111,15 @@ const { data: statsData, refresh: refreshStats } = await useAsyncData(
 );
 const stats = computed(() => statsData.value?.years ?? []);
 
+const { data: picksData, refresh: refreshPicks } = await useAsyncData(
+  "recommendations",
+  () => (userId.value ? $orpc.recommendations({ limit: 6 }) : Promise.resolve([])),
+  { watch: [userId] },
+);
+const picks = computed(() => picksData.value ?? []);
+
 async function onShelved() {
-  await Promise.all([refresh(), refreshShelves(), refreshStats()]);
+  await Promise.all([refresh(), refreshShelves(), refreshStats(), refreshPicks()]);
 }
 
 async function removeBook(id: string) {
@@ -140,6 +147,13 @@ async function removeBook(id: string) {
           Personal Library
         </h1>
         <p class="mt-3 text-base text-slate-400">{{ total }} books in the catalogue</p>
+        <NuxtLink
+          v-if="userId"
+          to="/friends"
+          class="mt-4 inline-block rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+        >
+          Friends &amp; feed →
+        </NuxtLink>
       </header>
 
       <AuthPanel @changed="onShelved()" />
@@ -240,6 +254,29 @@ async function removeBook(id: string) {
       >
         {{ error }}
       </p>
+
+      <div
+        v-if="userId && picks.length"
+        class="mb-8 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md"
+      >
+        <h2 class="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">
+          Recommended for you
+        </h2>
+        <p class="mb-4 text-xs text-slate-500">
+          Books sharing genres with the ones you finished, and not on any of your shelves.
+        </p>
+        <ul class="grid gap-2 sm:grid-cols-2">
+          <li
+            v-for="pick in picks"
+            :key="pick.id"
+            class="rounded-lg border border-white/5 bg-slate-900/40 px-3 py-2"
+          >
+            <p class="text-sm font-medium text-slate-100">{{ pick.title }}</p>
+            <p class="text-xs text-slate-400">{{ pick.author }}</p>
+            <p class="mt-1 text-xs text-sky-300/80">{{ pick.matchedGenres.join(", ") }}</p>
+          </li>
+        </ul>
+      </div>
 
       <div
         v-if="userId && stats.length"
