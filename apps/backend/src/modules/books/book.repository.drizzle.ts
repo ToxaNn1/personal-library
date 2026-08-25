@@ -46,6 +46,18 @@ const BOOK_FIELDS = {
   createdAt: books.createdAt,
 };
 
+function toTsQuery(search: string): string | null {
+  const terms = search
+    .toLowerCase()
+    .split(/\s+/)
+    .map((term) => term.replace(/[^a-z0-9]/g, ""))
+    .filter(Boolean);
+
+  if (terms.length === 0) return null;
+
+  return terms.map((term, i) => (i === terms.length - 1 ? `${term}:*` : term)).join(" & ");
+}
+
 function viewerShelfJoin(viewerId: string | undefined) {
   return viewerId ? eq(shelfItems.userId, viewerId) : sql`false`;
 }
@@ -56,7 +68,14 @@ export class DrizzleBookRepository implements BookRepository {
   async list(params: ListBooksParams): Promise<ListBooksResult> {
     const conditions: SQL[] = [];
     if (params.author) conditions.push(eq(books.author, params.author));
-    if (params.search) conditions.push(ilike(books.title, `%${params.search}%`));
+    if (params.search) {
+      const tsQuery = toTsQuery(params.search);
+      conditions.push(
+        tsQuery
+          ? sql`to_tsvector('simple', ${books.title}) @@ to_tsquery('simple', ${tsQuery})`
+          : ilike(books.title, `%${params.search}%`),
+      );
+    }
     if (params.ownerId) conditions.push(eq(books.ownerId, params.ownerId));
     if (params.genre) {
       conditions.push(

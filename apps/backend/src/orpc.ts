@@ -3,6 +3,7 @@ import { ORPCError, implement } from "@orpc/server";
 import type { Session } from "./auth.js";
 import { HttpException, UnauthorisedError } from "./errors.js";
 import { logger } from "./logger.js";
+import { captureException } from "./sentry.js";
 
 export interface AppContext {
   session: Session | null;
@@ -25,6 +26,7 @@ export const os = base.use(async ({ next }) => {
     }
 
     logger.error({ err }, "unhandled error in procedure");
+    captureException(err);
     throw new ORPCError("INTERNAL_ERROR", {
       status: 500,
       message: "Something went wrong",

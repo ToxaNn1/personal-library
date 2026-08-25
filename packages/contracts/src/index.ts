@@ -153,6 +153,17 @@ export const SetReadingGoalInput = z.object({
   targetBooks: z.number().int().min(1).max(1000),
 });
 
+export const NotificationSchema = z.object({
+  id: z.string().uuid(),
+  type: z.string(),
+  title: z.string(),
+  body: z.string().nullable(),
+  read: z.boolean(),
+  createdAt: z.string(),
+});
+
+export type Notification = z.infer<typeof NotificationSchema>;
+
 export const contract = {
   hello: oc
     .route({ method: "GET", path: "/hello" })
@@ -255,6 +266,55 @@ export const contract = {
     .output(z.object({ success: z.boolean() })),
 
   friendsReading: oc.route({ method: "GET", path: "/feed" }).output(z.array(FeedItemSchema)),
+
+  createShelf: oc
+    .route({ method: "POST", path: "/custom-shelves" })
+    .input(z.object({ name: z.string().min(1).max(60) }))
+    .output(ShelfSchema),
+
+  deleteShelf: oc
+    .route({ method: "DELETE", path: "/custom-shelves/{shelfId}" })
+    .input(z.object({ shelfId: z.string().uuid() }))
+    .output(z.object({ success: z.boolean() })),
+
+  addBookToShelf: oc
+    .route({ method: "PUT", path: "/custom-shelves/{shelfId}/books/{bookId}" })
+    .input(z.object({ shelfId: z.string().uuid(), bookId: z.string().uuid() }))
+    .output(ShelfSchema),
+
+  removeBookFromShelf: oc
+    .route({ method: "DELETE", path: "/custom-shelves/{shelfId}/books/{bookId}" })
+    .input(z.object({ shelfId: z.string().uuid(), bookId: z.string().uuid() }))
+    .output(z.object({ success: z.boolean() })),
+
+  listNotifications: oc
+    .route({ method: "GET", path: "/notifications" })
+    .output(z.array(NotificationSchema)),
+
+  markNotificationRead: oc
+    .route({ method: "PUT", path: "/notifications/{id}/read" })
+    .input(z.object({ id: z.string().uuid() }))
+    .output(z.object({ success: z.boolean() })),
+
+  listCustomShelfBooks: oc
+    .route({ method: "GET", path: "/custom-shelves/{shelfId}/books" })
+    .input(
+      z.object({
+        shelfId: z.string().uuid(),
+        page: z.coerce.number().int().min(1).default(1),
+        limit: z.coerce.number().int().min(1).max(100).default(20),
+      }),
+    )
+    .output(
+      z.object({
+        items: z.array(ShelfBookSchema),
+        meta: z.object({
+          page: z.number().int(),
+          limit: z.number().int(),
+          total: z.number().int(),
+        }),
+      }),
+    ),
 
   readingGoals: oc.route({ method: "GET", path: "/goals" }).output(z.array(ReadingGoalSchema)),
 

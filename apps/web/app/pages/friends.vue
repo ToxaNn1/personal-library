@@ -20,6 +20,27 @@ const { data: feedData, refresh: refreshFeed } = await useAsyncData(
 );
 const feed = computed(() => feedData.value ?? []);
 
+const { data: notificationsData, refresh: refreshNotifications } = await useAsyncData(
+  "notifications",
+  () => (userId.value ? $orpc.listNotifications() : Promise.resolve([])),
+  { watch: [userId] },
+);
+const notifications = computed(() => notificationsData.value ?? []);
+const unreadCount = computed(() => notifications.value.filter((n) => !n.read).length);
+
+async function markRead(id: string) {
+  try {
+    await $orpc.markNotificationRead({ id });
+    await refreshNotifications();
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Something went wrong";
+  }
+}
+
+function formatWhen(value: string) {
+  return new Date(value).toLocaleString();
+}
+
 async function toggleFollow(id: string, isFollowing: boolean) {
   busy.value = id;
   error.value = null;
@@ -29,7 +50,7 @@ async function toggleFollow(id: string, isFollowing: boolean) {
     } else {
       await $orpc.followUser({ userId: id });
     }
-    await Promise.all([refreshPeople(), refreshFeed()]);
+    await Promise.all([refreshPeople(), refreshFeed(), refreshNotifications()]);
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Something went wrong";
   } finally {
@@ -72,6 +93,46 @@ function formatDate(value: string) {
         >
           {{ error }}
         </p>
+
+        <section class="mb-8 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+          <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
+            Notifications
+            <span
+              v-if="unreadCount"
+              class="ml-1 rounded-full bg-sky-500/20 px-2 py-0.5 text-sky-300"
+            >
+              {{ unreadCount }} new
+            </span>
+          </h2>
+
+          <p v-if="!notifications.length" class="text-sm text-slate-500">Nothing here yet.</p>
+
+          <ul v-else class="space-y-2">
+            <li
+              v-for="note in notifications"
+              :key="note.id"
+              class="flex items-start justify-between gap-3 rounded-lg border border-white/5 px-4 py-3"
+              :class="note.read ? 'bg-slate-900/20' : 'bg-slate-900/60'"
+            >
+              <div>
+                <p class="text-sm" :class="note.read ? 'text-slate-400' : 'text-slate-100'">
+                  {{ note.title }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                  {{ note.body }} · {{ formatWhen(note.createdAt) }}
+                </p>
+              </div>
+              <button
+                v-if="!note.read"
+                type="button"
+                class="shrink-0 text-xs text-slate-400 transition hover:text-slate-100"
+                @click="markRead(note.id)"
+              >
+                Mark read
+              </button>
+            </li>
+          </ul>
+        </section>
 
         <section class="mb-8 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
           <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">

@@ -22,7 +22,8 @@ export interface ShelfBookEntity {
 
 export interface ListShelfBooksParams {
   userId: string;
-  kind: ShelfKind;
+  kind?: ShelfKind;
+  shelfId?: string;
   page: number;
   limit: number;
 }

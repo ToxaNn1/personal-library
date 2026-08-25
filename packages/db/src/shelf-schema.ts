@@ -35,6 +35,7 @@ export const shelves = pgTable(
   (t) => [
     unique("shelves_user_name_unique").on(t.userId, t.name),
     unique("shelves_id_user_unique").on(t.id, t.userId),
+    unique("shelves_id_user_kind_unique").on(t.id, t.userId, t.kind),
     uniqueIndex("shelves_user_kind_unique")
       .on(t.userId, t.kind)
       .where(sql`${t.kind} <> 'custom'`),
@@ -48,6 +49,7 @@ export const shelfItems = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     shelfId: uuid("shelf_id").notNull(),
     userId: text("user_id").notNull(),
+    kind: text("kind").notNull(),
     bookId: uuid("book_id")
       .notNull()
       .references(() => books.id, { onDelete: "cascade" }),
@@ -55,11 +57,14 @@ export const shelfItems = pgTable(
   },
   (t) => [
     foreignKey({
-      columns: [t.shelfId, t.userId],
-      foreignColumns: [shelves.id, shelves.userId],
+      columns: [t.shelfId, t.userId, t.kind],
+      foreignColumns: [shelves.id, shelves.userId, shelves.kind],
       name: "shelf_items_shelf_fk",
     }).onDelete("cascade"),
-    unique("shelf_items_user_book_unique").on(t.userId, t.bookId),
+    uniqueIndex("shelf_items_user_book_status_unique")
+      .on(t.userId, t.bookId)
+      .where(sql`${t.kind} <> 'custom'`),
+    unique("shelf_items_user_shelf_book_unique").on(t.userId, t.shelfId, t.bookId),
     index("shelf_items_shelf_idx").on(t.shelfId),
     index("shelf_items_book_idx").on(t.bookId),
   ],

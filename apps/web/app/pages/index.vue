@@ -125,6 +125,38 @@ const { data: goalsData, refresh: refreshGoals } = await useAsyncData(
 );
 const goals = computed(() => goalsData.value ?? []);
 
+const newShelfName = ref("");
+const shelfBusy = ref(false);
+
+async function createShelf() {
+  const name = newShelfName.value.trim();
+  if (!name) return;
+  shelfBusy.value = true;
+  error.value = null;
+  try {
+    await $orpc.createShelf({ name });
+    newShelfName.value = "";
+    await refreshShelves();
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Failed to create the shelf";
+  } finally {
+    shelfBusy.value = false;
+  }
+}
+
+async function deleteShelf(shelfId: string) {
+  shelfBusy.value = true;
+  error.value = null;
+  try {
+    await $orpc.deleteShelf({ shelfId });
+    await refreshShelves();
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Failed to delete the shelf";
+  } finally {
+    shelfBusy.value = false;
+  }
+}
+
 const currentYear = new Date().getFullYear();
 const goalTarget = ref(12);
 const savingGoal = ref(false);
@@ -186,15 +218,43 @@ async function removeBook(id: string) {
 
       <AuthPanel @changed="onShelved()" />
 
-      <div v-if="userId && shelves.length" class="mb-8 grid gap-3 sm:grid-cols-3">
+      <div v-if="userId && shelves.length" class="mb-4 grid gap-3 sm:grid-cols-3">
         <div
           v-for="shelf in shelves"
           :key="shelf.id"
-          class="rounded-xl border border-white/10 bg-white/5 p-4 text-center backdrop-blur-md"
+          class="relative rounded-xl border border-white/10 bg-white/5 p-4 text-center backdrop-blur-md"
         >
+          <button
+            v-if="shelf.kind === 'custom'"
+            type="button"
+            :disabled="shelfBusy"
+            title="Delete shelf"
+            class="absolute right-2 top-2 text-xs text-slate-500 transition hover:text-rose-300"
+            @click="deleteShelf(shelf.id)"
+          >
+            ✕
+          </button>
           <p class="text-2xl font-semibold text-slate-100">{{ shelf.bookCount }}</p>
           <p class="mt-1 text-xs uppercase tracking-wide text-slate-400">{{ shelf.name }}</p>
         </div>
+      </div>
+
+      <div v-if="userId" class="mb-8 flex gap-2">
+        <input
+          v-model="newShelfName"
+          type="text"
+          placeholder="New shelf, e.g. Favourites"
+          class="flex-1 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          @keyup.enter="createShelf"
+        />
+        <button
+          type="button"
+          :disabled="shelfBusy"
+          class="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
+          @click="createShelf"
+        >
+          Add shelf
+        </button>
       </div>
 
       <form

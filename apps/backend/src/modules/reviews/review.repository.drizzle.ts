@@ -63,10 +63,11 @@ export class DrizzleReviewRepository implements ReviewRepository {
 
       await tx
         .insert(shelfItems)
-        .values({ userId, shelfId: finished.id, bookId: data.bookId })
+        .values({ userId, shelfId: finished.id, kind: "finished", bookId: data.bookId })
         .onConflictDoUpdate({
           target: [shelfItems.userId, shelfItems.bookId],
-          set: { shelfId: finished.id, addedAt: sql`now()` },
+          targetWhere: sql`${shelfItems.kind} <> 'custom'`,
+          set: { shelfId: finished.id, kind: "finished", addedAt: sql`now()` },
         });
 
       const [review] = await tx

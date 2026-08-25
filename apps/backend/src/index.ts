@@ -1,4 +1,5 @@
 import { env } from "./env.js";
+import { captureException, sentryEnabled } from "./sentry.js";
 
 import { randomUUID } from "node:crypto";
 import { serve } from "@hono/node-server";
@@ -30,6 +31,9 @@ import { GenreService } from "./modules/genres/genre.service.js";
 import { createStatsController } from "./modules/stats/stats.controller.js";
 import { DrizzleStatsRepository } from "./modules/stats/stats.repository.drizzle.js";
 import { StatsService } from "./modules/stats/stats.service.js";
+import { createNotificationController } from "./modules/notifications/notification.controller.js";
+import { DrizzleNotificationRepository } from "./modules/notifications/notification.repository.drizzle.js";
+import { NotificationService } from "./modules/notifications/notification.service.js";
 import { createGoalController } from "./modules/goals/goal.controller.js";
 import { DrizzleGoalRepository } from "./modules/goals/goal.repository.drizzle.js";
 import { GoalService } from "./modules/goals/goal.service.js";
@@ -47,7 +51,13 @@ const bookRepository = new DrizzleBookRepository(db);
 const bookCache = new BookCache(new RedisCache(redis));
 const bookService = new BookService(bookRepository, bookCache);
 const shelfRepository = new DrizzleShelfRepository(db);
-const shelfService = new ShelfService(shelfRepository, bookRepository, bookCache);
+const notificationService = new NotificationService(new DrizzleNotificationRepository(db));
+const shelfService = new ShelfService(
+  shelfRepository,
+  bookRepository,
+  bookCache,
+  notificationService,
+);
 const reviewRepository = new DrizzleReviewRepository(db);
 const reviewService = new ReviewService(reviewRepository, bookRepository, bookCache);
 const genreService = new GenreService(new DrizzleGenreRepository(db));
@@ -67,6 +77,7 @@ const router = os.router({
   ...createRecommendationController(recommendationService),
   ...createSocialController(socialService),
   ...createGoalController(goalService),
+  ...createNotificationController(notificationService),
 });
 
 type Variables = { requestId: string };
@@ -113,6 +124,11 @@ const WRITE_PROCEDURES = [
   "followUser",
   "unfollowUser",
   "setReadingGoal",
+  "createShelf",
+  "deleteShelf",
+  "addBookToShelf",
+  "removeBookFromShelf",
+  "markNotificationRead",
 ];
 
 const TRUST_PROXY = env.TRUST_PROXY;
@@ -174,7 +190,7 @@ app.get("/health", async (c) => {
   return c.json(
     {
       status: healthy ? "ok" : "degraded",
-      environment: env.NODE_ENV,
+      environment: env.RAILWAY_ENVIRONMENT_NAME ?? env.NODE_ENV,
       version: VERSION,
       checks: { database, cache },
     },
@@ -229,13 +245,17 @@ app.onError((err, c) => {
   }
 
   logger.error({ requestId, err }, "unhandled error");
+  captureException(err, { requestId, path: c.req.path });
   return c.json({ code: "INTERNAL_ERROR", message: "Something went wrong" }, 500);
 });
 
 const port = env.PORT;
 
 const server = serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, ({ port }) => {
-  logger.info({ port }, `Backend listening on port ${port}`);
+  logger.info(
+    { port, version: VERSION, sentry: sentryEnabled },
+    `Backend listening on port ${port}`,
+  );
 });
 
 process.on("SIGTERM", () => {

@@ -72,8 +72,62 @@ export class DrizzleShelfRepository implements ShelfRepository {
     return shelf ?? null;
   }
 
+  async findById(userId: string, shelfId: string): Promise<ShelfEntity | null> {
+    const [shelf] = await this.db
+      .select(SHELF_FIELDS)
+      .from(shelves)
+      .leftJoin(shelfItems, eq(shelfItems.shelfId, shelves.id))
+      .where(and(eq(shelves.userId, userId), eq(shelves.id, shelfId)))
+      .groupBy(shelves.id)
+      .limit(1);
+    return shelf ?? null;
+  }
+
+  async createCustom(userId: string, name: string): Promise<ShelfEntity | null> {
+    const [created] = await this.db
+      .insert(shelves)
+      .values({ userId, name, kind: "custom" })
+      .onConflictDoNothing()
+      .returning({ id: shelves.id });
+
+    if (!created) return null;
+    return this.findById(userId, created.id);
+  }
+
+  async deleteCustom(userId: string, shelfId: string): Promise<boolean> {
+    const removed = await this.db
+      .delete(shelves)
+      .where(and(eq(shelves.userId, userId), eq(shelves.id, shelfId), eq(shelves.kind, "custom")))
+      .returning({ id: shelves.id });
+    return removed.length > 0;
+  }
+
+  async addToShelf(userId: string, shelfId: string, bookId: string): Promise<void> {
+    await this.db
+      .insert(shelfItems)
+      .values({ userId, shelfId, kind: "custom", bookId })
+      .onConflictDoNothing();
+  }
+
+  async removeFromShelf(userId: string, shelfId: string, bookId: string): Promise<boolean> {
+    const removed = await this.db
+      .delete(shelfItems)
+      .where(
+        and(
+          eq(shelfItems.userId, userId),
+          eq(shelfItems.shelfId, shelfId),
+          eq(shelfItems.bookId, bookId),
+        ),
+      )
+      .returning({ id: shelfItems.id });
+    return removed.length > 0;
+  }
+
   async listBooks(params: ListShelfBooksParams): Promise<ListShelfBooksResult> {
-    const where = and(eq(shelfItems.userId, params.userId), eq(shelves.kind, params.kind));
+    const where = and(
+      eq(shelfItems.userId, params.userId),
+      params.shelfId ? eq(shelves.id, params.shelfId) : eq(shelves.kind, params.kind ?? "to_read"),
+    );
 
     const items = await this.db
       .select({
@@ -102,20 +156,27 @@ export class DrizzleShelfRepository implements ShelfRepository {
     return { items, total: totals?.total ?? 0 };
   }
 
-  async placeBook(userId: string, shelfId: string, bookId: string): Promise<void> {
+  async placeBook(userId: string, shelfId: string, bookId: string, kind: ShelfKind): Promise<void> {
     await this.db
       .insert(shelfItems)
-      .values({ userId, shelfId, bookId })
+      .values({ userId, shelfId, kind, bookId })
       .onConflictDoUpdate({
         target: [shelfItems.userId, shelfItems.bookId],
-        set: { shelfId, addedAt: sql`now()` },
+        targetWhere: sql`${shelfItems.kind} <> 'custom'`,
+        set: { shelfId, kind, addedAt: sql`now()` },
       });
   }
 
   async removeBook(userId: string, bookId: string): Promise<boolean> {
     const removed = await this.db
       .delete(shelfItems)
-      .where(and(eq(shelfItems.userId, userId), eq(shelfItems.bookId, bookId)))
+      .where(
+        and(
+          eq(shelfItems.userId, userId),
+          eq(shelfItems.bookId, bookId),
+          sql`${shelfItems.kind} <> 'custom'`,
+        ),
+      )
       .returning({ id: shelfItems.id });
     return removed.length > 0;
   }
