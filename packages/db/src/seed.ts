@@ -1,5 +1,4 @@
-import "./load-env.js";
-import { db, pool } from "./client.js";
+import { db } from "./client.js";
 import { bookGenres, books, genres } from "./schema.js";
 
 const SEED_BOOKS = [
@@ -254,7 +253,7 @@ const SEED_GENRES = [
   { name: "DevOps", slug: "devops" },
 ];
 
-async function main() {
+export async function seed() {
   await db.delete(bookGenres);
   await db.delete(books);
   await db.delete(genres);
@@ -277,10 +276,3 @@ async function main() {
 
   console.log(`Seeded ${bookRows.length} books, ${genreRows.length} genres, ${links.length} links`);
 }
-
-main()
-  .catch((err) => {
-    console.error(err);
-    process.exitCode = 1;
-  })
-  .finally(() => pool.end());

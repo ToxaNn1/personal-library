@@ -135,7 +135,7 @@ app.get("/health", async (c) => {
   const healthy = database && cache;
 
   return c.json(
-    { status: healthy ? "ok" : "degraded", checks: { database, cache } },
+    { status: healthy ? "ok" : "degraded", environment: env.NODE_ENV, checks: { database, cache } },
     healthy ? 200 : 503,
   );
 });

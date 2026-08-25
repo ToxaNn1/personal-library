@@ -26,6 +26,10 @@ export const auth = betterAuth({
   trustedOrigins: [env.WEB_ORIGIN],
   advanced: {
     cookiePrefix: "library",
+    defaultCookieAttributes:
+      env.NODE_ENV === "production"
+        ? { sameSite: "none", secure: true, httpOnly: true }
+        : undefined,
   },
 });
 
