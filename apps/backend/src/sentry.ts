@@ -6,7 +6,7 @@ const enabled = Boolean(env.SENTRY_DSN);
 if (enabled) {
   Sentry.init({
     dsn: env.SENTRY_DSN,
-    environment: env.NODE_ENV,
+    environment: env.RAILWAY_ENVIRONMENT_NAME ?? env.NODE_ENV,
     release: env.RAILWAY_GIT_COMMIT_SHA ?? env.RAILWAY_DEPLOYMENT_ID,
     tracesSampleRate: 0,
     sendDefaultPii: false,
