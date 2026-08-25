@@ -55,6 +55,17 @@ personal-library/
 └── docker-compose.yml
 ```
 
+## Run everything in Docker
+
+```bash
+docker compose up -d --build     # postgres + redis + api, all healthchecked
+curl localhost:3001/health       # 200 when db and redis are both reachable
+```
+
+The API image is a multi-stage build (`apps/backend/Dockerfile`): the builder bundles the
+app with tsup, the runtime stage keeps only production dependencies and runs as the
+non-root `node` user.
+
 ## Getting started
 
 ```bash
