@@ -50,6 +50,13 @@
       "when": 1787675412495,
       "tag": "0006_tiresome_magneto",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787677243360,
+      "tag": "0007_wide_vivisector",
+      "breakpoints": true
     }
   ]
 }

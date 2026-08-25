@@ -30,6 +30,9 @@ import { GenreService } from "./modules/genres/genre.service.js";
 import { createStatsController } from "./modules/stats/stats.controller.js";
 import { DrizzleStatsRepository } from "./modules/stats/stats.repository.drizzle.js";
 import { StatsService } from "./modules/stats/stats.service.js";
+import { createGoalController } from "./modules/goals/goal.controller.js";
+import { DrizzleGoalRepository } from "./modules/goals/goal.repository.drizzle.js";
+import { GoalService } from "./modules/goals/goal.service.js";
 import { createRecommendationController } from "./modules/recommendations/recommendation.controller.js";
 import { DrizzleRecommendationRepository } from "./modules/recommendations/recommendation.repository.drizzle.js";
 import { RecommendationService } from "./modules/recommendations/recommendation.service.js";
@@ -51,6 +54,7 @@ const genreService = new GenreService(new DrizzleGenreRepository(db));
 const statsService = new StatsService(new DrizzleStatsRepository(db));
 const recommendationService = new RecommendationService(new DrizzleRecommendationRepository(db));
 const socialService = new SocialService(new DrizzleSocialRepository(db));
+const goalService = new GoalService(new DrizzleGoalRepository(db));
 const rateLimiter = new RateLimiter(redis);
 
 const router = os.router({
@@ -62,6 +66,7 @@ const router = os.router({
   ...createStatsController(statsService),
   ...createRecommendationController(recommendationService),
   ...createSocialController(socialService),
+  ...createGoalController(goalService),
 });
 
 type Variables = { requestId: string };
@@ -107,6 +112,7 @@ const WRITE_PROCEDURES = [
   "finishAndReview",
   "followUser",
   "unfollowUser",
+  "setReadingGoal",
 ];
 
 const TRUST_PROXY = env.TRUST_PROXY;
@@ -154,6 +160,9 @@ app.use("/api/auth/*", async (c, next) => {
 
 app.all("/api/auth/*", (c) => auth.handler(c.req.raw));
 
+const VERSION =
+  env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? env.RAILWAY_DEPLOYMENT_ID?.slice(0, 8) ?? "dev";
+
 app.get("/", (c) => c.json({ status: "ok", service: "@library/api" }));
 
 app.get("/health", async (c) => {
@@ -163,7 +172,12 @@ app.get("/health", async (c) => {
   const healthy = database && cache;
 
   return c.json(
-    { status: healthy ? "ok" : "degraded", environment: env.NODE_ENV, checks: { database, cache } },
+    {
+      status: healthy ? "ok" : "degraded",
+      environment: env.NODE_ENV,
+      version: VERSION,
+      checks: { database, cache },
+    },
     healthy ? 200 : 503,
   );
 });

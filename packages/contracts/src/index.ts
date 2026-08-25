@@ -140,6 +140,19 @@ export const FeedItemSchema = z.object({
 
 export type FeedItem = z.infer<typeof FeedItemSchema>;
 
+export const ReadingGoalSchema = z.object({
+  year: z.number().int(),
+  targetBooks: z.number().int(),
+  booksFinished: z.number().int(),
+});
+
+export type ReadingGoal = z.infer<typeof ReadingGoalSchema>;
+
+export const SetReadingGoalInput = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
+  targetBooks: z.number().int().min(1).max(1000),
+});
+
 export const contract = {
   hello: oc
     .route({ method: "GET", path: "/hello" })
@@ -242,6 +255,13 @@ export const contract = {
     .output(z.object({ success: z.boolean() })),
 
   friendsReading: oc.route({ method: "GET", path: "/feed" }).output(z.array(FeedItemSchema)),
+
+  readingGoals: oc.route({ method: "GET", path: "/goals" }).output(z.array(ReadingGoalSchema)),
+
+  setReadingGoal: oc
+    .route({ method: "PUT", path: "/goals/{year}" })
+    .input(SetReadingGoalInput)
+    .output(ReadingGoalSchema),
 };
 
 export type Contract = typeof contract;

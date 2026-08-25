@@ -6,6 +6,7 @@ export * from "./shelf-schema.js";
 export * from "./review-schema.js";
 export * from "./genre-schema.js";
 export * from "./social-schema.js";
+export * from "./goal-schema.js";
 
 export const books = pgTable("books", {
   id: uuid("id").primaryKey().defaultRandom(),

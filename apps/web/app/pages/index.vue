@@ -118,8 +118,36 @@ const { data: picksData, refresh: refreshPicks } = await useAsyncData(
 );
 const picks = computed(() => picksData.value ?? []);
 
+const { data: goalsData, refresh: refreshGoals } = await useAsyncData(
+  "goals",
+  () => (userId.value ? $orpc.readingGoals() : Promise.resolve([])),
+  { watch: [userId] },
+);
+const goals = computed(() => goalsData.value ?? []);
+
+const currentYear = new Date().getFullYear();
+const goalTarget = ref(12);
+const savingGoal = ref(false);
+
+async function saveGoal() {
+  savingGoal.value = true;
+  error.value = null;
+  try {
+    await $orpc.setReadingGoal({ year: currentYear, targetBooks: goalTarget.value });
+    await refreshGoals();
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Failed to save the goal";
+  } finally {
+    savingGoal.value = false;
+  }
+}
+
+function goalPercent(goal: { booksFinished: number; targetBooks: number }) {
+  return Math.min(100, Math.round((goal.booksFinished / goal.targetBooks) * 100));
+}
+
 async function onShelved() {
-  await Promise.all([refresh(), refreshShelves(), refreshStats(), refreshPicks()]);
+  await Promise.all([refresh(), refreshShelves(), refreshStats(), refreshPicks(), refreshGoals()]);
 }
 
 async function removeBook(id: string) {
@@ -254,6 +282,55 @@ async function removeBook(id: string) {
       >
         {{ error }}
       </p>
+
+      <div
+        v-if="userId"
+        class="mb-8 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md"
+      >
+        <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
+          Reading goals
+        </h2>
+
+        <div class="mb-4 flex items-end gap-3">
+          <label class="text-xs text-slate-400">
+            Books in {{ currentYear }}
+            <input
+              v-model.number="goalTarget"
+              type="number"
+              min="1"
+              max="1000"
+              class="mt-1 block w-28 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-slate-100"
+            />
+          </label>
+          <button
+            type="button"
+            :disabled="savingGoal"
+            class="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
+            @click="saveGoal"
+          >
+            Set goal
+          </button>
+        </div>
+
+        <p v-if="!goals.length" class="text-sm text-slate-500">No goal set yet.</p>
+
+        <ul v-else class="space-y-3">
+          <li v-for="goal in goals" :key="goal.year">
+            <div class="mb-1 flex justify-between text-sm">
+              <span class="font-medium text-slate-200">{{ goal.year }}</span>
+              <span class="text-slate-400">
+                {{ goal.booksFinished }} / {{ goal.targetBooks }} books
+              </span>
+            </div>
+            <div class="h-2 overflow-hidden rounded-full bg-slate-800">
+              <div
+                class="h-full rounded-full bg-gradient-to-r from-sky-400 to-fuchsia-400 transition-all"
+                :style="{ width: goalPercent(goal) + '%' }"
+              />
+            </div>
+          </li>
+        </ul>
+      </div>
 
       <div
         v-if="userId && picks.length"
