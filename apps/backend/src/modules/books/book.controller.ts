@@ -4,7 +4,7 @@ import { authed, os } from "../../orpc.js";
 import type { BookService } from "./book.service.js";
 import type { BookEntity } from "./book.types.js";
 
-function toBookDto(book: BookEntity): Book {
+export function toBookDto(book: BookEntity): Book {
   return {
     id: book.id,
     title: book.title,

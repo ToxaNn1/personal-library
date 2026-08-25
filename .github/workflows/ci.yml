@@ -59,6 +59,8 @@ jobs:
 
       - run: pnpm typecheck
 
+      - run: pnpm test
+
       - name: Apply migrations
         run: pnpm --filter @library/db db:migrate
 
