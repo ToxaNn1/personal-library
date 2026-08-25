@@ -19,6 +19,7 @@ function toShelfBookDto(book: ShelfBookEntity) {
     author: book.author,
     year: book.year,
     isbn: book.isbn,
+    pages: book.pages,
     addedAt: book.addedAt.toISOString(),
   };
 }

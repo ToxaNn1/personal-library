@@ -16,6 +16,7 @@ export interface ShelfBookEntity {
   author: string;
   year: number | null;
   isbn: string | null;
+  pages: number | null;
   addedAt: Date;
 }
 

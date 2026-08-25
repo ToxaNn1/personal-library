@@ -82,6 +82,7 @@ export class DrizzleShelfRepository implements ShelfRepository {
         author: books.author,
         year: books.year,
         isbn: books.isbn,
+        pages: books.pages,
         addedAt: shelfItems.addedAt,
       })
       .from(shelfItems)

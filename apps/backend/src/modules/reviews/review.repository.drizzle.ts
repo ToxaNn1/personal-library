@@ -11,17 +11,9 @@ import {
   user,
   type DB,
 } from "@library/db";
-import { ConflictError, NotFoundError } from "../../errors.js";
+import { NotFoundError } from "../../errors.js";
 import type { ReviewRepository } from "./review.repository.js";
 import type { FinishAndReviewResult, NewReview, ReviewWithAuthor } from "./review.types.js";
-
-function isUniqueViolation(err: unknown, constraint: string): boolean {
-  for (let current = err; current instanceof Error; current = current.cause) {
-    const candidate = current as Error & { code?: string; constraint?: string };
-    if (candidate.code === "23505" && candidate.constraint === constraint) return true;
-  }
-  return false;
-}
 
 const REVIEW_FIELDS = {
   id: reviews.id,
@@ -55,18 +47,7 @@ export class DrizzleReviewRepository implements ReviewRepository {
     return review ?? null;
   }
 
-  async finishAndReview(userId: string, data: NewReview): Promise<FinishAndReviewResult> {
-    try {
-      return await this.runFinishAndReview(userId, data);
-    } catch (err) {
-      if (isUniqueViolation(err, "reviews_user_book_unique")) {
-        throw new ConflictError("You have already reviewed this book");
-      }
-      throw err;
-    }
-  }
-
-  private runFinishAndReview(userId: string, data: NewReview): Promise<FinishAndReviewResult> {
+  finishAndReview(userId: string, data: NewReview): Promise<FinishAndReviewResult> {
     return this.db.transaction(async (tx) => {
       await tx
         .insert(shelves)
@@ -91,8 +72,12 @@ export class DrizzleReviewRepository implements ReviewRepository {
       const [review] = await tx
         .insert(reviews)
         .values({ userId, bookId: data.bookId, rating: data.rating, body: data.body })
+        .onConflictDoUpdate({
+          target: [reviews.userId, reviews.bookId],
+          set: { rating: data.rating, body: data.body },
+        })
         .returning();
-      if (!review) throw new ConflictError("You have already reviewed this book");
+      if (!review) throw new NotFoundError("Could not save the review");
 
       const [totals] = await tx
         .select({ total: count() })
