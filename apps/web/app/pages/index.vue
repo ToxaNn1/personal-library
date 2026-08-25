@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Book } from '@library/contracts';
+import type { Book } from "@library/contracts";
 
 const { $orpc, $auth } = useNuxtApp();
 const session = $auth.useSession();
@@ -11,6 +11,7 @@ const sort = ref<"title" | "year" | "createdAt">("createdAt");
 const order = ref<"asc" | "desc">("desc");
 const listSearch = ref("");
 const tab = ref<"all" | "mine">("all");
+const genre = ref("");
 
 const { data, refresh } = await useAsyncData(
   "books",
@@ -22,15 +23,16 @@ const { data, refresh } = await useAsyncData(
       order: order.value,
       search: listSearch.value.trim() || undefined,
       owner: tab.value,
+      genre: genre.value || undefined,
     }),
-  { watch: [page, limit, sort, order, listSearch, tab] },
+  { watch: [page, limit, sort, order, listSearch, tab, genre] },
 );
 
 const books = computed(() => data.value?.items ?? []);
 const total = computed(() => data.value?.meta.total ?? 0);
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit.value)));
 
-watch([listSearch, sort, order, tab], () => {
+watch([listSearch, sort, order, tab, genre], () => {
   page.value = 1;
 });
 
@@ -41,9 +43,9 @@ const form = reactive({
   isbn: "",
 });
 
-const bookId = ref('')
-const findedBook = ref<null | Book>(null)
-const isSubmittingBook = ref(false)
+const bookId = ref("");
+const findedBook = ref<null | Book>(null);
+const isSubmittingBook = ref(false);
 
 const isSubmitting = ref(false);
 const error = ref<string | null>(null);
@@ -72,26 +74,24 @@ async function addBook() {
 }
 
 async function findBookById() {
-  if(!bookId.value.trim()) return
+  if (!bookId.value.trim()) return;
   isSubmittingBook.value = true;
   error.value = null;
-  findedBook.value = null
+  findedBook.value = null;
 
   try {
-    findedBook.value = await $orpc.findBookById({id: bookId.value})
-    bookId.value = ''
-
-  } catch (e){
+    findedBook.value = await $orpc.findBookById({ id: bookId.value });
+    bookId.value = "";
+  } catch (e) {
     error.value = e instanceof Error ? e.message : "Failed to find book";
   } finally {
     isSubmittingBook.value = false;
   }
 }
 
-
-function removeFindedBook(id: string){
-  if(!id) return
-  findedBook.value = null
+function removeFindedBook(id: string) {
+  if (!id) return;
+  findedBook.value = null;
 }
 
 const { data: shelvesData, refresh: refreshShelves } = await useAsyncData(
@@ -101,8 +101,18 @@ const { data: shelvesData, refresh: refreshShelves } = await useAsyncData(
 );
 const shelves = computed(() => shelvesData.value ?? []);
 
+const { data: genresData } = await useAsyncData("genres", () => $orpc.listGenres());
+const allGenres = computed(() => genresData.value ?? []);
+
+const { data: statsData, refresh: refreshStats } = await useAsyncData(
+  "stats",
+  () => (userId.value ? $orpc.readingStats({}) : Promise.resolve(null)),
+  { watch: [userId] },
+);
+const stats = computed(() => statsData.value?.years ?? []);
+
 async function onShelved() {
-  await Promise.all([refresh(), refreshShelves()]);
+  await Promise.all([refresh(), refreshShelves(), refreshStats()]);
 }
 
 async function removeBook(id: string) {
@@ -195,7 +205,7 @@ async function removeBook(id: string) {
         />
         <button
           type="submit"
-            :disabled="isSubmittingBook"
+          :disabled="isSubmittingBook"
           class="inline-flex items-center gap-2 cursor-pointer rounded-lg bg-gradient-to-br from-sky-400 to-fuchsia-400 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:opacity-90"
         >
           <svg
@@ -231,6 +241,35 @@ async function removeBook(id: string) {
         {{ error }}
       </p>
 
+      <div
+        v-if="userId && stats.length"
+        class="mb-8 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md"
+      >
+        <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+          Reading stats by year
+        </h2>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs uppercase tracking-wide text-slate-500">
+              <th class="pb-2 font-medium">Year</th>
+              <th class="pb-2 font-medium">Books</th>
+              <th class="pb-2 font-medium">Pages</th>
+              <th class="pb-2 font-medium">Avg rating</th>
+              <th class="pb-2 font-medium">Top genre</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in stats" :key="row.year" class="border-t border-white/5">
+              <td class="py-2 font-medium text-slate-200">{{ row.year }}</td>
+              <td class="py-2 text-slate-300">{{ row.booksFinished }}</td>
+              <td class="py-2 text-slate-300">{{ row.totalPages.toLocaleString() }}</td>
+              <td class="py-2 text-slate-300">{{ row.averageRating ?? "—" }}</td>
+              <td class="py-2 text-slate-300">{{ row.topGenre ?? "—" }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
       <p
         v-if="!userId"
         class="mb-10 rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm text-slate-400 backdrop-blur-md"
@@ -238,9 +277,11 @@ async function removeBook(id: string) {
         Sign in to add books to the catalogue.
       </p>
 
-      <div class="mb-4 flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1 backdrop-blur-md">
+      <div
+        class="mb-4 flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1 backdrop-blur-md"
+      >
         <button
-          v-for="t in (['all', 'mine'] as const)"
+          v-for="t in ['all', 'mine'] as const"
           :key="t"
           :disabled="t === 'mine' && !userId"
           @click="tab = t"
@@ -261,6 +302,15 @@ async function removeBook(id: string) {
           placeholder="Filter by title…"
           class="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
         />
+        <select
+          v-model="genre"
+          class="cursor-pointer rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-sky-400 focus:outline-none"
+        >
+          <option value="">All genres</option>
+          <option v-for="g in allGenres" :key="g.id" :value="g.slug">
+            {{ g.name }} ({{ g.bookCount }})
+          </option>
+        </select>
         <select
           v-model="sort"
           class="cursor-pointer rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-sky-400 focus:outline-none"

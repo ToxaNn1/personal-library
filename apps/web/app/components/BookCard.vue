@@ -18,7 +18,12 @@ const emit = defineEmits<{ delete: [id: string]; shelved: [] }>();
       class="absolute right-3 top-3 cursor-pointer rounded-md p-1 text-slate-500 opacity-0 transition hover:bg-rose-500/20 hover:text-rose-300 group-hover:opacity-100"
       aria-label="Delete book"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-4 w-4"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+      >
         <path
           fill-rule="evenodd"
           d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
@@ -35,6 +40,16 @@ const emit = defineEmits<{ delete: [id: string]; shelved: [] }>();
       {{ book.author }}<span v-if="book.year"> · {{ book.year }}</span>
     </p>
     <p v-if="book.isbn" class="mt-2 font-mono text-xs text-slate-500">ISBN {{ book.isbn }}</p>
+
+    <div v-if="book.genres.length" class="mt-2 flex flex-wrap gap-1">
+      <span
+        v-for="genre in book.genres"
+        :key="genre.id"
+        class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-400"
+      >
+        {{ genre.name }}
+      </span>
+    </div>
 
     <div class="mt-4 flex items-center gap-2 border-t border-white/5 pt-3">
       <span
