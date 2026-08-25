@@ -104,14 +104,14 @@ railway add --database redis
 Set the service variables. Reference the databases rather than pasting their URLs, so a
 rotated password cannot silently break the service:
 
-| Variable | Value |
-| --- | --- |
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
-| `REDIS_URL` | `${{Redis.REDIS_URL}}` |
-| `BETTER_AUTH_SECRET` | `openssl rand -base64 32` |
-| `BETTER_AUTH_URL` | `https://${{RAILWAY_PUBLIC_DOMAIN}}` |
-| `WEB_ORIGIN` | the origin the frontend is served from; comma-separated for more than one |
-| `TRUST_PROXY` | `true` — Railway terminates TLS in front of the app |
+| Variable             | Value                                                                     |
+| -------------------- | ------------------------------------------------------------------------- |
+| `DATABASE_URL`       | `${{Postgres.DATABASE_URL}}`                                              |
+| `REDIS_URL`          | `${{Redis.REDIS_URL}}`                                                    |
+| `BETTER_AUTH_SECRET` | `openssl rand -base64 32`                                                 |
+| `BETTER_AUTH_URL`    | `https://${{RAILWAY_PUBLIC_DOMAIN}}`                                      |
+| `WEB_ORIGIN`         | the origin the frontend is served from; comma-separated for more than one |
+| `TRUST_PROXY`        | `true` — Railway terminates TLS in front of the app                       |
 
 ```bash
 railway up                       # first deploy from local source

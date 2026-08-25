@@ -1,5 +1,6 @@
 import { ForbiddenError, NotFoundError, ValidationError } from "../../errors.js";
 import type { HttpException } from "../../errors.js";
+import { err, ok, type Result } from "../../result.js";
 import type { BookCache } from "./book.cache.js";
 import type { BookRepository } from "./book.repository.js";
 import type {
@@ -30,19 +31,19 @@ export class BookService {
     return result;
   }
 
-  async findById(id: string, viewerId?: string): Promise<BookEntity> {
+  async findById(id: string, viewerId?: string): Promise<Result<BookEntity, NotFoundError>> {
     const key = await this.cache.bookKey(id, viewerId);
 
     const cached = await this.cache.get<BookEntity>(key);
-    if (cached) return cached;
+    if (cached) return ok(cached);
 
     const book = await this.repo.findById(id, viewerId);
     if (!book) {
-      throw new NotFoundError(`Book ${id} not found`);
+      return err(new NotFoundError(`Book ${id} not found`));
     }
 
     await this.cache.set(key, book, BOOK_TTL);
-    return book;
+    return ok(book);
   }
 
   async create(data: NewBook): Promise<BookEntity> {

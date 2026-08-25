@@ -40,8 +40,9 @@ export function createBookController(service: BookService) {
     }),
 
     findBookById: os.findBookById.handler(async ({ input, context }) => {
-      const book = await service.findById(input.id, context.session?.user.id);
-      return toBookDto(book);
+      const found = await service.findById(input.id, context.session?.user.id);
+      if (!found.ok) throw found.error;
+      return toBookDto(found.value);
     }),
 
     createBook: authed.createBook.handler(async ({ input, context }) => {
