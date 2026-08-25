@@ -1,6 +1,7 @@
 import {
   and,
   asc,
+  bookGenres,
   books,
   desc,
   eq,
@@ -33,6 +34,12 @@ const BOOK_FIELDS = {
   author: books.author,
   year: books.year,
   isbn: books.isbn,
+  pages: books.pages,
+  genres: sql<{ id: string; name: string; slug: string }[]>`coalesce(
+    (select json_agg(json_build_object('id', g.id, 'name', g.name, 'slug', g.slug) order by g.name)
+     from book_genres bg join genres g on g.id = bg.genre_id
+     where bg.book_id = ${books.id}),
+    '[]'::json)`,
   ownerId: books.ownerId,
   ownerName: user.name,
   shelfKind: shelves.kind,
@@ -51,6 +58,12 @@ export class DrizzleBookRepository implements BookRepository {
     if (params.author) conditions.push(eq(books.author, params.author));
     if (params.search) conditions.push(ilike(books.title, `%${params.search}%`));
     if (params.ownerId) conditions.push(eq(books.ownerId, params.ownerId));
+    if (params.genre) {
+      conditions.push(
+        sql`exists (select 1 from book_genres bg join genres g on g.id = bg.genre_id
+              where bg.book_id = ${books.id} and g.slug = ${params.genre})`,
+      );
+    }
     const where = conditions.length ? and(...conditions) : undefined;
 
     const column = SORT_COLUMNS[params.sort];
@@ -77,8 +90,20 @@ export class DrizzleBookRepository implements BookRepository {
   }
 
   async create(data: NewBook): Promise<BookEntity> {
-    const [inserted] = await this.db.insert(books).values(data).returning({ id: books.id });
-    if (!inserted) throw new Error("INSERT ... RETURNING returned no row");
+    const { genreIds, ...values } = data;
+
+    const inserted = await this.db.transaction(async (tx) => {
+      const [row] = await tx.insert(books).values(values).returning({ id: books.id });
+      if (!row) throw new Error("INSERT ... RETURNING returned no row");
+
+      if (genreIds?.length) {
+        await tx
+          .insert(bookGenres)
+          .values(genreIds.map((genreId) => ({ bookId: row.id, genreId })))
+          .onConflictDoNothing();
+      }
+      return row;
+    });
 
     const book = await this.findById(inserted.id);
     if (!book) throw new Error("Inserted book could not be read back");

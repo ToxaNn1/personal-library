@@ -38,7 +38,14 @@ export class InMemoryBookRepository implements BookRepository {
   }
 
   async create(data: NewBook): Promise<BookEntity> {
-    const book: BookEntity = { id: randomUUID(), createdAt: new Date(), ownerName: null, shelfKind: null, ...data };
+    const book: BookEntity = {
+      id: randomUUID(),
+      createdAt: new Date(),
+      ownerName: null,
+      shelfKind: null,
+      genres: [],
+      ...data,
+    };
     this.books.set(book.id, book);
     return book;
   }
@@ -50,7 +57,7 @@ export class InMemoryBookRepository implements BookRepository {
   }
 
   async findById(id: string): Promise<BookEntity | null> {
-    return this.books.get(id) ?? null
+    return this.books.get(id) ?? null;
   }
 
   async updateBook(id: string, data: BookUpdate, ownerId: string): Promise<BookEntity | null> {

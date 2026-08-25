@@ -1,4 +1,4 @@
-import { ForbiddenError, NotFoundError } from "../../errors.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../../errors.js";
 import type { HttpException } from "../../errors.js";
 import type { BookCache } from "./book.cache.js";
 import type { BookRepository } from "./book.repository.js";
@@ -52,6 +52,10 @@ export class BookService {
   }
 
   async updateBook(id: string, data: BookUpdate, userId: string): Promise<BookEntity> {
+    if (Object.keys(data).length === 0) {
+      throw new ValidationError("Provide at least one field to update");
+    }
+
     const updated = await this.repo.updateBook(id, data, userId);
     if (!updated) throw await this.writeDenied(id);
 

@@ -7,7 +7,7 @@ import { RPCHandler } from "@orpc/server/fetch";
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { db } from "@library/db";
+import { db, sql } from "@library/db";
 import { auth } from "./auth.js";
 import { RedisCache, redis } from "./cache.js";
 import { BookCache } from "./modules/books/book.cache.js";
@@ -21,6 +21,12 @@ import { BookService } from "./modules/books/book.service.js";
 import { createShelfController } from "./modules/shelves/shelf.controller.js";
 import { DrizzleShelfRepository } from "./modules/shelves/shelf.repository.drizzle.js";
 import { ShelfService } from "./modules/shelves/shelf.service.js";
+import { createGenreController } from "./modules/genres/genre.controller.js";
+import { DrizzleGenreRepository } from "./modules/genres/genre.repository.drizzle.js";
+import { GenreService } from "./modules/genres/genre.service.js";
+import { createStatsController } from "./modules/stats/stats.controller.js";
+import { DrizzleStatsRepository } from "./modules/stats/stats.repository.drizzle.js";
+import { StatsService } from "./modules/stats/stats.service.js";
 import { createReviewController } from "./modules/reviews/review.controller.js";
 import { DrizzleReviewRepository } from "./modules/reviews/review.repository.drizzle.js";
 import { ReviewService } from "./modules/reviews/review.service.js";
@@ -32,6 +38,8 @@ const shelfRepository = new DrizzleShelfRepository(db);
 const shelfService = new ShelfService(shelfRepository, bookRepository, bookCache);
 const reviewRepository = new DrizzleReviewRepository(db);
 const reviewService = new ReviewService(reviewRepository, bookRepository, bookCache);
+const genreService = new GenreService(new DrizzleGenreRepository(db));
+const statsService = new StatsService(new DrizzleStatsRepository(db));
 const rateLimiter = new RateLimiter(redis);
 
 const router = os.router({
@@ -39,6 +47,8 @@ const router = os.router({
   ...createBookController(bookService),
   ...createShelfController(shelfService),
   ...createReviewController(reviewService),
+  ...createGenreController(genreService),
+  ...createStatsController(statsService),
 });
 
 type Variables = { requestId: string };
@@ -117,6 +127,18 @@ app.use("/api/auth/*", async (c, next) => {
 app.all("/api/auth/*", (c) => auth.handler(c.req.raw));
 
 app.get("/", (c) => c.json({ status: "ok", service: "@library/api" }));
+
+app.get("/health", async (c) => {
+  const checks = await Promise.allSettled([db.execute(sql`select 1`), redis.ping()]);
+  const database = checks[0]?.status === "fulfilled";
+  const cache = checks[1]?.status === "fulfilled";
+  const healthy = database && cache;
+
+  return c.json(
+    { status: healthy ? "ok" : "degraded", checks: { database, cache } },
+    healthy ? 200 : 503,
+  );
+});
 
 const rpcHandler = new RPCHandler(router);
 

@@ -11,6 +11,8 @@ function toBookDto(book: BookEntity): Book {
     author: book.author,
     year: book.year,
     isbn: book.isbn,
+    pages: book.pages,
+    genres: book.genres,
     ownerId: book.ownerId,
     ownerName: book.ownerName,
     shelfKind: (book.shelfKind as Book["shelfKind"]) ?? null,
@@ -48,6 +50,8 @@ export function createBookController(service: BookService) {
         author: input.author,
         year: input.year ?? null,
         isbn: input.isbn ?? null,
+        pages: input.pages ?? null,
+        genreIds: input.genreIds,
         ownerId: context.user.id,
       });
       return toBookDto(book);

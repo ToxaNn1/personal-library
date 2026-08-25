@@ -2,6 +2,8 @@ import type { Cache } from "../../cache.js";
 
 const VERSION_KEY = "books:ver";
 
+const CACHED_SHAPE_VERSION = 2;
+
 export class BookCache {
   constructor(private readonly cache: Cache) {}
 
@@ -10,11 +12,11 @@ export class BookCache {
   }
 
   async listKey(params: unknown): Promise<string> {
-    return `books:v${await this.version()}:list:${JSON.stringify(params)}`;
+    return `books:s${CACHED_SHAPE_VERSION}:v${await this.version()}:list:${JSON.stringify(params)}`;
   }
 
   async bookKey(id: string, viewerId?: string): Promise<string> {
-    return `books:v${await this.version()}:book:${id}:${viewerId ?? "anon"}`;
+    return `books:s${CACHED_SHAPE_VERSION}:v${await this.version()}:book:${id}:${viewerId ?? "anon"}`;
   }
 
   get<T>(key: string): Promise<T | null> {

@@ -4,6 +4,8 @@ export interface BookEntity {
   author: string;
   year: number | null;
   isbn: string | null;
+  pages: number | null;
+  genres: { id: string; name: string; slug: string }[];
   ownerId: string | null;
   ownerName: string | null;
   shelfKind: string | null;
@@ -15,10 +17,12 @@ export interface NewBook {
   author: string;
   year: number | null;
   isbn: string | null;
+  pages: number | null;
+  genreIds?: string[];
   ownerId: string | null;
 }
 
-export type BookUpdate = Partial<Omit<NewBook, "ownerId">>;
+export type BookUpdate = Partial<Omit<NewBook, "ownerId" | "genreIds">>;
 
 export interface ListBooksParams {
   page: number;
@@ -29,6 +33,7 @@ export interface ListBooksParams {
   search?: string;
   ownerId?: string;
   viewerId?: string;
+  genre?: string;
 }
 
 export interface ListBooksResult {
