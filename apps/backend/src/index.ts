@@ -80,7 +80,7 @@ app.use("*", async (c, next) => {
 app.use(
   "*",
   cors({
-    origin: [env.WEB_ORIGIN],
+    origin: env.WEB_ORIGIN,
     credentials: true,
   }),
 );

@@ -110,7 +110,7 @@ rotated password cannot silently break the service:
 | `REDIS_URL` | `${{Redis.REDIS_URL}}` |
 | `BETTER_AUTH_SECRET` | `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | `https://${{RAILWAY_PUBLIC_DOMAIN}}` |
-| `WEB_ORIGIN` | the origin the frontend is served from |
+| `WEB_ORIGIN` | the origin the frontend is served from; comma-separated for more than one |
 | `TRUST_PROXY` | `true` — Railway terminates TLS in front of the app |
 
 ```bash

@@ -9,7 +9,11 @@ const EnvSchema = z.object({
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.string().url(),
-  WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
+  WEB_ORIGIN: z
+    .string()
+    .default("http://localhost:3000")
+    .transform((value) => value.split(",").map((origin) => origin.trim()))
+    .pipe(z.array(z.string().url()).min(1)),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).optional(),
   TRUST_PROXY: z
     .enum(["true", "false"])
