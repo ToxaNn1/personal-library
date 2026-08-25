@@ -18,4 +18,9 @@ export function captureException(err: unknown, context: Record<string, unknown> 
   Sentry.captureException(err, { extra: context });
 }
 
+export async function closeSentry(): Promise<void> {
+  if (!enabled) return;
+  await Sentry.close(2000);
+}
+
 export const sentryEnabled = enabled;

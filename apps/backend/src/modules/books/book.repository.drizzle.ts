@@ -49,8 +49,7 @@ const BOOK_FIELDS = {
 function toTsQuery(search: string): string | null {
   const terms = search
     .toLowerCase()
-    .split(/\s+/)
-    .map((term) => term.replace(/[^a-z0-9]/g, ""))
+    .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean);
 
   if (terms.length === 0) return null;
@@ -59,7 +58,8 @@ function toTsQuery(search: string): string | null {
 }
 
 function viewerShelfJoin(viewerId: string | undefined) {
-  return viewerId ? eq(shelfItems.userId, viewerId) : sql`false`;
+  if (!viewerId) return sql`false`;
+  return and(eq(shelfItems.userId, viewerId), sql`${shelfItems.kind} <> 'custom'`);
 }
 
 export class DrizzleBookRepository implements BookRepository {

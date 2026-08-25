@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { ShelfKind } from "@library/contracts";
+import type { ShelfKind, StatusShelfKind } from "@library/contracts";
 
 const props = defineProps<{ bookId: string; current: ShelfKind | null }>();
 const emit = defineEmits<{ changed: [] }>();
 
 const { $orpc } = useNuxtApp();
 
-const OPTIONS: { kind: ShelfKind; label: string }[] = [
+const OPTIONS: { kind: StatusShelfKind; label: string }[] = [
   { kind: "to_read", label: "To read" },
   { kind: "reading", label: "Reading" },
   { kind: "finished", label: "Finished" },
@@ -18,7 +18,7 @@ const reviewing = ref(false);
 const rating = ref(5);
 const body = ref("");
 
-async function place(kind: ShelfKind) {
+async function place(kind: StatusShelfKind) {
   if (kind === "finished") {
     reviewing.value = true;
     return;

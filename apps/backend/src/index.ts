@@ -1,5 +1,5 @@
 import { env } from "./env.js";
-import { captureException, sentryEnabled } from "./sentry.js";
+import { captureException, closeSentry, sentryEnabled } from "./sentry.js";
 
 import { randomUUID } from "node:crypto";
 import { serve } from "@hono/node-server";
@@ -261,6 +261,6 @@ const server = serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, ({ port })
 process.on("SIGTERM", () => {
   logger.info("SIGTERM received, draining connections");
   server.close(() => {
-    void Promise.allSettled([pool.end(), redis.quit()]).then(() => process.exit(0));
+    void Promise.allSettled([closeSentry(), pool.end(), redis.quit()]).then(() => process.exit(0));
   });
 });

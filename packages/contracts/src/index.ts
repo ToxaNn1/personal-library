@@ -4,6 +4,9 @@ import { z } from "zod";
 export const ShelfKindSchema = z.enum(["to_read", "reading", "finished", "custom"]);
 export type ShelfKind = z.infer<typeof ShelfKindSchema>;
 
+export const StatusShelfKindSchema = z.enum(["to_read", "reading", "finished"]);
+export type StatusShelfKind = z.infer<typeof StatusShelfKindSchema>;
+
 export const BookSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
@@ -69,7 +72,7 @@ export const ShelfBookSchema = BookSchema.omit({
 });
 
 export const ListShelfBooksInput = z.object({
-  kind: ShelfKindSchema,
+  kind: StatusShelfKindSchema,
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
@@ -213,7 +216,7 @@ export const contract = {
 
   placeBookOnShelf: oc
     .route({ method: "PUT", path: "/shelf-items/{bookId}" })
-    .input(z.object({ bookId: z.string().uuid(), kind: ShelfKindSchema }))
+    .input(z.object({ bookId: z.string().uuid(), kind: StatusShelfKindSchema }))
     .output(ShelfSchema),
 
   removeBookFromShelves: oc

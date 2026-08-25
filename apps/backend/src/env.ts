@@ -14,7 +14,11 @@ const EnvSchema = z.object({
     .default("http://localhost:3000")
     .transform((value) => value.split(",").map((origin) => origin.trim()))
     .pipe(z.array(z.string().url()).min(1)),
-  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_DSN: z
+    .literal("")
+    .or(z.string().url())
+    .optional()
+    .transform((value) => value || undefined),
   RAILWAY_ENVIRONMENT_NAME: z.string().optional(),
   RAILWAY_GIT_COMMIT_SHA: z.string().optional(),
   RAILWAY_DEPLOYMENT_ID: z.string().optional(),
