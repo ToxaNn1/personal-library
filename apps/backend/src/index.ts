@@ -3,8 +3,10 @@ import { env } from "./env.js";
 import { randomUUID } from "node:crypto";
 import { serve } from "@hono/node-server";
 import { getConnInfo } from "@hono/node-server/conninfo";
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { RPCHandler } from "@orpc/server/fetch";
-import { Hono, type Context } from "hono";
+import { ZodSmartCoercionPlugin } from "@orpc/zod";
+import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { db, pool, sql } from "@library/db";
@@ -13,6 +15,7 @@ import { RedisCache, redis } from "./cache.js";
 import { BookCache } from "./modules/books/book.cache.js";
 import { HttpException, RateLimitError } from "./errors.js";
 import { logger } from "./logger.js";
+import { docsPage, openApiSpec } from "./openapi.js";
 import { os } from "./orpc.js";
 import { RateLimiter } from "./rate-limit.js";
 import { createBookController } from "./modules/books/book.controller.js";
@@ -108,13 +111,26 @@ function clientKey(c: Context<{ Variables: Variables }>): string {
   return socket ?? "unknown";
 }
 
-app.use("/rpc/*", async (c, next) => {
+const limitWrite = (c: Context<{ Variables: Variables }>) =>
+  rateLimiter.check("write", clientKey(c), { limit: 20, windowSec: 60 });
+
+const rateLimitRpcWrites: MiddlewareHandler<{ Variables: Variables }> = async (c, next) => {
   const procedure = c.req.path.replace("/rpc/", "");
   if (!WRITE_PROCEDURES.includes(procedure)) return next();
 
-  await rateLimiter.check("write", clientKey(c), { limit: 20, windowSec: 60 });
+  await limitWrite(c);
   await next();
-});
+};
+
+const rateLimitRestWrites: MiddlewareHandler<{ Variables: Variables }> = async (c, next) => {
+  if (c.req.method === "GET") return next();
+
+  await limitWrite(c);
+  await next();
+};
+
+app.use("/rpc/*", rateLimitRpcWrites);
+app.use("/api/v1/*", rateLimitRestWrites);
 
 app.use("/api/auth/*", async (c, next) => {
   const path = c.req.path;
@@ -141,6 +157,25 @@ app.get("/health", async (c) => {
 });
 
 const rpcHandler = new RPCHandler(router);
+
+const apiHandler = new OpenAPIHandler(router, {
+  plugins: [new ZodSmartCoercionPlugin()],
+});
+
+app.get("/openapi.json", async (c) => c.json((await openApiSpec()) as object));
+
+app.get("/docs", (c) => c.html(docsPage));
+
+app.all("/api/v1/*", async (c) => {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+
+  const { matched, response } = await apiHandler.handle(c.req.raw, {
+    prefix: "/api/v1",
+    context: { session },
+  });
+  if (matched) return response;
+  return c.notFound();
+});
 
 app.all("/rpc/*", async (c) => {
   const session = await auth.api.getSession({ headers: c.req.raw.headers });

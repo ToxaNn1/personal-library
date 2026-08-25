@@ -78,6 +78,23 @@ pnpm dev                                      # run backend + frontend
 
 - Backend: http://localhost:3001
 - Frontend: http://localhost:3000
+- API docs: http://localhost:3001/docs
+
+## API surfaces
+
+The same Zod contract in `packages/contracts` is served two ways from one router:
+
+| Surface        | Prefix      | Used by                                                           |
+| -------------- | ----------- | ----------------------------------------------------------------- |
+| oRPC           | `/rpc/*`    | the Nuxt client, fully typed, no codegen                          |
+| REST + OpenAPI | `/api/v1/*` | anything else; described by `/openapi.json`, browsable at `/docs` |
+
+Authorisation and ownership checks live in the procedures, so both surfaces enforce them.
+Writes are rate limited on both.
+
+```bash
+pnpm test                               # unit tests, no database required
+```
 
 ### Working with the schema (Drizzle)
 

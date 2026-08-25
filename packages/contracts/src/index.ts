@@ -109,56 +109,88 @@ export const YearStatsSchema = z.object({
 export type YearStats = z.infer<typeof YearStatsSchema>;
 
 export const contract = {
-  hello: oc.input(z.object({ name: z.string().min(1) })).output(z.object({ message: z.string() })),
+  hello: oc
+    .route({ method: "GET", path: "/hello" })
+    .input(z.object({ name: z.string().min(1) }))
+    .output(z.object({ message: z.string() })),
 
-  listBooks: oc.input(ListBooksInput).output(ListBooksOutput),
+  listBooks: oc
+    .route({ method: "GET", path: "/books" })
+    .input(ListBooksInput)
+    .output(ListBooksOutput),
 
-  createBook: oc.input(CreateBookInput).output(BookSchema),
+  createBook: oc
+    .route({ method: "POST", path: "/books" })
+    .input(CreateBookInput)
+    .output(BookSchema),
 
   deleteBook: oc
+    .route({ method: "DELETE", path: "/books/{id}" })
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() })),
 
-  findBookById: oc.input(z.object({ id: z.string().uuid() })).output(BookSchema),
+  findBookById: oc
+    .route({ method: "GET", path: "/books/{id}" })
+    .input(z.object({ id: z.string().uuid() }))
+    .output(BookSchema),
 
   updateBook: oc
+    .route({ method: "PATCH", path: "/books/{id}" })
     .input(CreateBookInput.omit({ genreIds: true }).partial().extend({ id: z.string().uuid() }))
     .output(BookSchema),
 
-  listShelves: oc.output(z.array(ShelfSchema)),
+  listShelves: oc.route({ method: "GET", path: "/shelves" }).output(z.array(ShelfSchema)),
 
-  listShelfBooks: oc.input(ListShelfBooksInput).output(
-    z.object({
-      items: z.array(ShelfBookSchema),
-      meta: z.object({ page: z.number().int(), limit: z.number().int(), total: z.number().int() }),
-    }),
-  ),
+  listShelfBooks: oc
+    .route({ method: "GET", path: "/shelves/{kind}/books" })
+    .input(ListShelfBooksInput)
+    .output(
+      z.object({
+        items: z.array(ShelfBookSchema),
+        meta: z.object({
+          page: z.number().int(),
+          limit: z.number().int(),
+          total: z.number().int(),
+        }),
+      }),
+    ),
 
   placeBookOnShelf: oc
+    .route({ method: "PUT", path: "/shelf-items/{bookId}" })
     .input(z.object({ bookId: z.string().uuid(), kind: ShelfKindSchema }))
     .output(ShelfSchema),
 
   removeBookFromShelves: oc
+    .route({ method: "DELETE", path: "/shelf-items/{bookId}" })
     .input(z.object({ bookId: z.string().uuid() }))
     .output(z.object({ success: z.boolean() })),
 
-  finishAndReview: oc.input(FinishAndReviewInput).output(
-    z.object({
-      review: ReviewSchema,
-      finishedCount: z.number().int(),
-    }),
-  ),
+  finishAndReview: oc
+    .route({ method: "POST", path: "/reviews" })
+    .input(FinishAndReviewInput)
+    .output(
+      z.object({
+        review: ReviewSchema,
+        finishedCount: z.number().int(),
+      }),
+    ),
 
-  listBookReviews: oc.input(z.object({ bookId: z.string().uuid() })).output(z.array(ReviewSchema)),
+  listBookReviews: oc
+    .route({ method: "GET", path: "/books/{bookId}/reviews" })
+    .input(z.object({ bookId: z.string().uuid() }))
+    .output(z.array(ReviewSchema)),
 
-  listGenres: oc.output(z.array(GenreSchema)),
+  listGenres: oc.route({ method: "GET", path: "/genres" }).output(z.array(GenreSchema)),
 
-  readingStats: oc.input(z.object({ userId: z.string().optional() })).output(
-    z.object({
-      user: z.object({ id: z.string(), name: z.string() }),
-      years: z.array(YearStatsSchema),
-    }),
-  ),
+  readingStats: oc
+    .route({ method: "GET", path: "/stats" })
+    .input(z.object({ userId: z.string().optional() }))
+    .output(
+      z.object({
+        user: z.object({ id: z.string(), name: z.string() }),
+        years: z.array(YearStatsSchema),
+      }),
+    ),
 };
 
 export type Contract = typeof contract;
