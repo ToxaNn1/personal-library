@@ -1,4 +1,4 @@
-import "dotenv/config";
+import { env } from "./env.js";
 
 import { randomUUID } from "node:crypto";
 import { serve } from "@hono/node-server";
@@ -80,7 +80,7 @@ app.use("*", async (c, next) => {
 app.use(
   "*",
   cors({
-    origin: ["http://localhost:3000"],
+    origin: [env.WEB_ORIGIN],
     credentials: true,
   }),
 );
@@ -94,7 +94,7 @@ const WRITE_PROCEDURES = [
   "finishAndReview",
 ];
 
-const TRUST_PROXY = process.env.TRUST_PROXY === "true";
+const TRUST_PROXY = env.TRUST_PROXY;
 
 function clientKey(c: Context<{ Variables: Variables }>): string {
   if (TRUST_PROXY) {
@@ -171,7 +171,7 @@ app.onError((err, c) => {
   return c.json({ code: "INTERNAL_ERROR", message: "Something went wrong" }, 500);
 });
 
-const port = Number(process.env.PORT ?? 3001);
+const port = env.PORT;
 
 serve({ fetch: app.fetch, port }, ({ port }) => {
   logger.info({ port }, `Backend listening on http://localhost:${port}`);

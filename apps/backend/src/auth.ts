@@ -1,8 +1,7 @@
-import "dotenv/config";
-
 import { DEFAULT_SHELVES, db, shelves } from "@library/db";
 import * as schema from "@library/db/schema";
 import { betterAuth } from "better-auth";
+import { env } from "./env.js";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
 export const auth = betterAuth({
@@ -24,7 +23,7 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24,
     cookieCache: { enabled: true, maxAge: 5 * 60 },
   },
-  trustedOrigins: ["http://localhost:3000"],
+  trustedOrigins: [env.WEB_ORIGIN],
   advanced: {
     cookiePrefix: "library",
   },

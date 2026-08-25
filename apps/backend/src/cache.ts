@@ -1,4 +1,5 @@
 import Redis from "ioredis";
+import { env } from "./env.js";
 
 export interface Cache {
   get<T>(key: string): Promise<T | null>;
@@ -7,7 +8,7 @@ export interface Cache {
   incr(key: string): Promise<number>;
 }
 
-export const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", {
+export const redis = new Redis(env.REDIS_URL, {
   maxRetriesPerRequest: 1,
 });
 
