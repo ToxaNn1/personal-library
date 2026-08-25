@@ -13,6 +13,8 @@ export const BookSchema = z.object({
   ownerId: z.string().nullable(),
   ownerName: z.string().nullable(),
   shelfKind: ShelfKindSchema.nullable(),
+  pages: z.number().int().nullable(),
+  genres: z.array(z.object({ id: z.string().uuid(), name: z.string(), slug: z.string() })),
 });
 
 export type Book = z.infer<typeof BookSchema>;
@@ -22,6 +24,8 @@ export const CreateBookInput = z.object({
   author: z.string().min(1).max(200),
   year: z.number().int().min(0).max(9999).nullable().optional(),
   isbn: z.string().min(1).max(20).nullable().optional(),
+  pages: z.number().int().min(1).max(50000).nullable().optional(),
+  genreIds: z.array(z.string().uuid()).max(5).optional(),
 });
 
 export const ListBooksInput = z.object({
@@ -32,6 +36,7 @@ export const ListBooksInput = z.object({
   author: z.string().min(1).optional(),
   search: z.string().min(1).optional(),
   owner: z.enum(["all", "mine"]).default("all"),
+  genre: z.string().min(1).optional(),
 });
 
 export type ListBooksQuery = z.infer<typeof ListBooksInput>;
@@ -54,7 +59,12 @@ export const ShelfSchema = z.object({
 
 export type Shelf = z.infer<typeof ShelfSchema>;
 
-export const ShelfBookSchema = BookSchema.omit({ ownerId: true, ownerName: true, shelfKind: true }).extend({
+export const ShelfBookSchema = BookSchema.omit({
+  ownerId: true,
+  ownerName: true,
+  shelfKind: true,
+  genres: true,
+}).extend({
   addedAt: z.string(),
 });
 
@@ -81,6 +91,23 @@ export const FinishAndReviewInput = z.object({
   body: z.string().max(2000).optional(),
 });
 
+export const GenreSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  slug: z.string(),
+  bookCount: z.number().int(),
+});
+
+export const YearStatsSchema = z.object({
+  year: z.number().int(),
+  booksFinished: z.number().int(),
+  totalPages: z.number().int(),
+  averageRating: z.number().nullable(),
+  topGenre: z.string().nullable(),
+});
+
+export type YearStats = z.infer<typeof YearStatsSchema>;
+
 export const contract = {
   hello: oc.input(z.object({ name: z.string().min(1) })).output(z.object({ message: z.string() })),
 
@@ -94,7 +121,9 @@ export const contract = {
 
   findBookById: oc.input(z.object({ id: z.string().uuid() })).output(BookSchema),
 
-  updateBook: oc.input(CreateBookInput.partial().extend({id: z.string().uuid()})).output(BookSchema),
+  updateBook: oc
+    .input(CreateBookInput.omit({ genreIds: true }).partial().extend({ id: z.string().uuid() }))
+    .output(BookSchema),
 
   listShelves: oc.output(z.array(ShelfSchema)),
 
@@ -120,9 +149,16 @@ export const contract = {
     }),
   ),
 
-  listBookReviews: oc
-    .input(z.object({ bookId: z.string().uuid() }))
-    .output(z.array(ReviewSchema)),
+  listBookReviews: oc.input(z.object({ bookId: z.string().uuid() })).output(z.array(ReviewSchema)),
+
+  listGenres: oc.output(z.array(GenreSchema)),
+
+  readingStats: oc.input(z.object({ userId: z.string().optional() })).output(
+    z.object({
+      user: z.object({ id: z.string(), name: z.string() }),
+      years: z.array(YearStatsSchema),
+    }),
+  ),
 };
 
 export type Contract = typeof contract;

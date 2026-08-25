@@ -11,12 +11,10 @@ if (!connectionString) {
 
 export const pool = new Pool({ connectionString });
 
-
 pool.on("error", (err) => {
   console.error("Unexpected error on idle Postgres client:", err);
   process.exit(1);
 });
-
 
 export const db = drizzle(pool, { schema });
 
