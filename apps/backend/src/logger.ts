@@ -4,7 +4,7 @@ import { env } from "./env.js";
 const isProduction = env.NODE_ENV === "production";
 
 export const logger = pino({
-  level: env.LOG_LEVEL ?? (isProduction ? "warn" : "info"),
+  level: env.LOG_LEVEL ?? "info",
   formatters: { level: (label) => ({ level: label }) },
   timestamp: pino.stdTimeFunctions.isoTime,
   redact: ["req.headers.authorization", "req.headers.cookie", "*.password", "*.token"],

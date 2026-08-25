@@ -7,7 +7,7 @@ import { RPCHandler } from "@orpc/server/fetch";
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { db, sql } from "@library/db";
+import { db, pool, sql } from "@library/db";
 import { auth } from "./auth.js";
 import { RedisCache, redis } from "./cache.js";
 import { BookCache } from "./modules/books/book.cache.js";
@@ -173,6 +173,13 @@ app.onError((err, c) => {
 
 const port = env.PORT;
 
-serve({ fetch: app.fetch, port }, ({ port }) => {
-  logger.info({ port }, `Backend listening on http://localhost:${port}`);
+const server = serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, ({ port }) => {
+  logger.info({ port }, `Backend listening on port ${port}`);
+});
+
+process.on("SIGTERM", () => {
+  logger.info("SIGTERM received, draining connections");
+  server.close(() => {
+    void Promise.allSettled([pool.end(), redis.quit()]).then(() => process.exit(0));
+  });
 });

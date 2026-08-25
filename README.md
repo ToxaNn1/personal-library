@@ -87,3 +87,44 @@ pnpm --filter @library/db db:migrate    # apply migrations
 pnpm --filter @library/db db:seed       # seed test data (idempotent)
 pnpm --filter @library/db db:studio     # open Drizzle Studio
 ```
+
+## Deploying to Railway
+
+The image, the health check and the migration step are already wired; what follows is the
+one-time setup on Railway's side.
+
+```bash
+npm i -g @railway/cli
+railway login
+railway init                     # creates the project and its production environment
+railway add --database postgres
+railway add --database redis
+```
+
+Set the service variables. Reference the databases rather than pasting their URLs, so a
+rotated password cannot silently break the service:
+
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
+| `REDIS_URL` | `${{Redis.REDIS_URL}}` |
+| `BETTER_AUTH_SECRET` | `openssl rand -base64 32` |
+| `BETTER_AUTH_URL` | `https://${{RAILWAY_PUBLIC_DOMAIN}}` |
+| `WEB_ORIGIN` | the origin the frontend is served from |
+| `TRUST_PROXY` | `true` — Railway terminates TLS in front of the app |
+
+```bash
+railway up                       # first deploy from local source
+railway domain                   # public URL + certificate
+railway logs
+```
+
+`railway.json` tells Railway to build `apps/backend/Dockerfile`, run
+`node apps/backend/dist/migrate.js` **before** the new version receives traffic, and poll
+`/health` until it answers 200. A failed migration or an unhealthy container leaves the previous
+deployment serving.
+
+After the first deploy, pushing to `main` is the deploy command.
+
+To roll back, redeploy the previous deployment from the Railway dashboard. Note that a rollback
+returns the code, not the schema — which is why migrations only ever add.
