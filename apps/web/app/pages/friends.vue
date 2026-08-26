@@ -65,21 +65,12 @@ function formatDate(value: string) {
 
 <template>
   <main class="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100 antialiased">
-    <div
-      aria-hidden="true"
-      class="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_30%_30%,rgba(96,165,250,0.18),transparent_60%),radial-gradient(50%_40%_at_70%_70%,rgba(192,132,252,0.16),transparent_60%)]"
-    />
-
-    <div class="mx-auto max-w-3xl px-6 py-16">
+    <div class="px-8 py-12 lg:px-12">
       <header class="mb-10">
-        <NuxtLink to="/" class="text-sm text-slate-400 transition hover:text-slate-200">
+        <NuxtLink to="/" class="text-base text-slate-400 transition hover:text-slate-200">
           ← Back to the catalogue
         </NuxtLink>
-        <h1
-          class="mt-3 bg-gradient-to-br from-sky-400 to-fuchsia-400 bg-clip-text text-4xl font-bold tracking-tight text-transparent"
-        >
-          Friends
-        </h1>
+        <h1 class="mt-3 text-4xl font-bold tracking-tight text-teal-300 sm:text-5xl">Friends</h1>
       </header>
 
       <p v-if="!userId" class="rounded-xl border border-white/10 bg-white/5 p-5 text-slate-300">
@@ -89,23 +80,23 @@ function formatDate(value: string) {
       <template v-else>
         <p
           v-if="error"
-          class="mb-6 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
+          class="mb-6 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-base text-rose-200"
         >
           {{ error }}
         </p>
 
         <section class="mb-8 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
-          <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
+          <h2 class="mb-4 text-base font-semibold uppercase tracking-wide text-slate-400">
             Notifications
             <span
               v-if="unreadCount"
-              class="ml-1 rounded-full bg-sky-500/20 px-2 py-0.5 text-sky-300"
+              class="ml-1 rounded-full bg-teal-500/20 px-2 py-0.5 text-teal-300"
             >
               {{ unreadCount }} new
             </span>
           </h2>
 
-          <p v-if="!notifications.length" class="text-sm text-slate-500">Nothing here yet.</p>
+          <p v-if="!notifications.length" class="text-base text-slate-500">Nothing here yet.</p>
 
           <ul v-else class="space-y-2">
             <li
@@ -115,17 +106,17 @@ function formatDate(value: string) {
               :class="note.read ? 'bg-slate-900/20' : 'bg-slate-900/60'"
             >
               <div>
-                <p class="text-sm" :class="note.read ? 'text-slate-400' : 'text-slate-100'">
+                <p class="text-base" :class="note.read ? 'text-slate-400' : 'text-slate-100'">
                   {{ note.title }}
                 </p>
-                <p class="mt-1 text-xs text-slate-500">
+                <p class="mt-1 text-sm text-slate-500">
                   {{ note.body }} · {{ formatWhen(note.createdAt) }}
                 </p>
               </div>
               <button
                 v-if="!note.read"
                 type="button"
-                class="shrink-0 text-xs text-slate-400 transition hover:text-slate-100"
+                class="shrink-0 text-sm text-slate-400 transition hover:text-slate-100"
                 @click="markRead(note.id)"
               >
                 Mark read
@@ -135,11 +126,11 @@ function formatDate(value: string) {
         </section>
 
         <section class="mb-8 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
-          <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
+          <h2 class="mb-4 text-base font-semibold uppercase tracking-wide text-slate-400">
             Currently reading
           </h2>
 
-          <p v-if="!feed.length" class="text-sm text-slate-500">
+          <p v-if="!feed.length" class="text-base text-slate-500">
             Nothing yet — follow someone below to fill this feed.
           </p>
 
@@ -149,12 +140,12 @@ function formatDate(value: string) {
               :key="`${item.userId}-${item.bookId}`"
               class="rounded-lg border border-white/5 bg-slate-900/40 px-4 py-3"
             >
-              <p class="text-sm text-slate-100">
-                <span class="font-medium text-sky-300">{{ item.userName }}</span>
+              <p class="text-base text-slate-100">
+                <span class="font-medium text-teal-300">{{ item.userName }}</span>
                 is reading
                 <span class="font-medium">{{ item.title }}</span>
               </p>
-              <p class="mt-1 text-xs text-slate-500">
+              <p class="mt-1 text-sm text-slate-500">
                 {{ item.author }} · since {{ formatDate(item.startedAt) }}
               </p>
             </li>
@@ -162,9 +153,13 @@ function formatDate(value: string) {
         </section>
 
         <section class="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
-          <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">Readers</h2>
+          <h2 class="mb-4 text-base font-semibold uppercase tracking-wide text-slate-400">
+            Readers
+          </h2>
 
-          <p v-if="!people.length" class="text-sm text-slate-500">No one else has signed up yet.</p>
+          <p v-if="!people.length" class="text-base text-slate-500">
+            No one else has signed up yet.
+          </p>
 
           <ul v-else class="space-y-2">
             <li
@@ -173,13 +168,13 @@ function formatDate(value: string) {
               class="flex items-center justify-between rounded-lg border border-white/5 bg-slate-900/40 px-4 py-3"
             >
               <div>
-                <p class="text-sm font-medium text-slate-100">{{ person.name }}</p>
-                <p class="text-xs text-slate-500">{{ person.booksFinished }} finished</p>
+                <p class="text-base font-medium text-slate-100">{{ person.name }}</p>
+                <p class="text-sm text-slate-500">{{ person.booksFinished }} finished</p>
               </div>
               <button
                 type="button"
                 :disabled="busy === person.id"
-                class="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
+                class="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
                 @click="toggleFollow(person.id, person.isFollowing)"
               >
                 {{ person.isFollowing ? "Unfollow" : "Follow" }}

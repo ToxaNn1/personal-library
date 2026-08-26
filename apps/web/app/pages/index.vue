@@ -100,6 +100,9 @@ const { data: shelvesData, refresh: refreshShelves } = await useAsyncData(
   { watch: [userId] },
 );
 const shelves = computed(() => shelvesData.value ?? []);
+const customShelves = computed(() =>
+  shelves.value.filter((shelf) => shelf.kind === "custom").map(({ id, name }) => ({ id, name })),
+);
 
 const { data: genresData } = await useAsyncData("genres", () => $orpc.listGenres());
 const allGenres = computed(() => genresData.value ?? []);
@@ -194,23 +197,18 @@ async function removeBook(id: string) {
 
 <template>
   <main class="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100 antialiased">
-    <div
-      aria-hidden="true"
-      class="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_30%_30%,rgba(96,165,250,0.18),transparent_60%),radial-gradient(50%_40%_at_70%_70%,rgba(192,132,252,0.16),transparent_60%)]"
-    />
-
-    <div class="mx-auto max-w-5xl px-6 py-16">
-      <header class="mb-10 text-center">
-        <h1
-          class="mt-3 bg-gradient-to-br from-sky-400 to-fuchsia-400 bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl"
-        >
-          Personal Library
-        </h1>
-        <p class="mt-3 text-base text-slate-400">{{ total }} books in the catalogue</p>
+    <div class="px-8 py-12 lg:px-12">
+      <header class="mb-10 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 class="text-4xl font-bold tracking-tight text-teal-300 sm:text-5xl">
+            Personal Library
+          </h1>
+          <p class="mt-2 text-lg text-slate-400">{{ total }} books in the catalogue</p>
+        </div>
         <NuxtLink
           v-if="userId"
           to="/friends"
-          class="mt-4 inline-block rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+          class="rounded-lg border border-teal-400/30 bg-teal-400/10 px-5 py-2.5 text-base font-medium text-teal-200 transition hover:bg-teal-400/20"
         >
           Friends &amp; feed →
         </NuxtLink>
@@ -218,321 +216,348 @@ async function removeBook(id: string) {
 
       <AuthPanel @changed="onShelved()" />
 
-      <div v-if="userId && shelves.length" class="mb-4 grid gap-3 sm:grid-cols-3">
-        <div
-          v-for="shelf in shelves"
-          :key="shelf.id"
-          class="relative rounded-xl border border-white/10 bg-white/5 p-4 text-center backdrop-blur-md"
-        >
-          <button
-            v-if="shelf.kind === 'custom'"
-            type="button"
-            :disabled="shelfBusy"
-            title="Delete shelf"
-            class="absolute right-2 top-2 text-xs text-slate-500 transition hover:text-rose-300"
-            @click="deleteShelf(shelf.id)"
+      <section v-if="userId" class="mb-8 rounded-xl border border-white/10 bg-slate-900/40 p-5">
+        <div class="flex flex-wrap items-center gap-2">
+          <div
+            v-for="shelf in shelves"
+            :key="shelf.id"
+            class="group/shelf flex items-center gap-2.5 rounded-lg border px-3.5 py-2"
+            :class="
+              shelf.kind === 'custom'
+                ? 'border-teal-400/25 bg-teal-400/5'
+                : 'border-white/10 bg-white/5'
+            "
           >
-            ✕
-          </button>
-          <p class="text-2xl font-semibold text-slate-100">{{ shelf.bookCount }}</p>
-          <p class="mt-1 text-xs uppercase tracking-wide text-slate-400">{{ shelf.name }}</p>
-        </div>
-      </div>
+            <span class="text-xl font-semibold tabular-nums text-slate-100">
+              {{ shelf.bookCount }}
+            </span>
+            <span class="text-sm text-slate-400">{{ shelf.name }}</span>
+            <button
+              v-if="shelf.kind === 'custom'"
+              type="button"
+              :disabled="shelfBusy"
+              title="Delete shelf"
+              class="cursor-pointer text-sm text-slate-600 opacity-0 transition hover:text-rose-300 group-hover/shelf:opacity-100"
+              @click="deleteShelf(shelf.id)"
+            >
+              ✕
+            </button>
+          </div>
 
-      <div v-if="userId" class="mb-8 flex gap-2">
-        <input
-          v-model="newShelfName"
-          type="text"
-          placeholder="New shelf, e.g. Favourites"
-          class="flex-1 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
-          @keyup.enter="createShelf"
-        />
-        <button
-          type="button"
-          :disabled="shelfBusy"
-          class="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
-          @click="createShelf"
-        >
-          Add shelf
-        </button>
-      </div>
-
-      <form
-        v-if="userId"
-        @submit.prevent="addBook"
-        class="mb-10 grid gap-3 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md sm:grid-cols-[1fr_1fr_110px_150px_auto]"
-      >
-        <input
-          v-model="form.title"
-          required
-          placeholder="Title"
-          class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
-        />
-        <input
-          v-model="form.author"
-          required
-          placeholder="Author"
-          class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
-        />
-        <input
-          v-model.number="form.year"
-          type="number"
-          min="0"
-          max="9999"
-          placeholder="Year"
-          class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
-        />
-        <input
-          v-model="form.isbn"
-          placeholder="ISBN"
-          class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
-        />
-        <button
-          type="submit"
-          :disabled="isSubmitting"
-          class="rounded-lg bg-gradient-to-br cursor-pointer from-sky-400 to-fuchsia-400 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {{ isSubmitting ? "Adding..." : "Add book" }}
-        </button>
-      </form>
-
-      <form
-        @submit.prevent="findBookById"
-        class="mb-8 flex gap-3 rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-md"
-      >
-        <input
-          v-model="bookId"
-          placeholder="Search book by id…"
-          class="flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
-        />
-        <button
-          type="submit"
-          :disabled="isSubmittingBook"
-          class="inline-flex items-center gap-2 cursor-pointer rounded-lg bg-gradient-to-br from-sky-400 to-fuchsia-400 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:opacity-90"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-4 w-4"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-              clip-rule="evenodd"
+          <div class="ml-auto flex items-center gap-2">
+            <input
+              v-model="newShelfName"
+              type="text"
+              placeholder="New shelf…"
+              class="w-44 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-teal-400 focus:outline-none"
+              @keyup.enter="createShelf"
             />
-          </svg>
-          {{ isSubmittingBook ? "Search..." : "Search" }}
-        </button>
-      </form>
-
-      <BookCard
-        v-if="findedBook"
-        :book="findedBook"
-        :can-delete="findedBook.ownerId !== null && findedBook.ownerId === userId"
-        :can-shelve="!!userId"
-        class="mb-8"
-        @delete="removeFindedBook"
-        @shelved="onShelved"
-      />
+            <button
+              type="button"
+              :disabled="shelfBusy"
+              class="cursor-pointer rounded-lg border border-teal-400/30 bg-teal-400/10 px-3.5 py-2 text-sm font-medium text-teal-200 transition hover:bg-teal-400/20 disabled:opacity-50"
+              @click="createShelf"
+            >
+              Add shelf
+            </button>
+          </div>
+        </div>
+      </section>
 
       <p
         v-if="error"
-        class="mb-6 rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-300"
+        class="mb-6 rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-base text-rose-300"
       >
         {{ error }}
       </p>
 
-      <div
-        v-if="userId"
-        class="mb-8 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md"
-      >
-        <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
-          Reading goals
-        </h2>
+      <div class="grid gap-8 xl:grid-cols-[320px_1fr]">
+        <aside v-if="userId" class="space-y-6">
+          <div
+            v-if="userId"
+            class="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md"
+          >
+            <h2 class="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
+              Reading goals
+            </h2>
 
-        <div class="mb-4 flex items-end gap-3">
-          <label class="text-xs text-slate-400">
-            Books in {{ currentYear }}
+            <div class="mb-4">
+              <label class="mb-1.5 block text-sm text-slate-500">
+                Target for {{ currentYear }}
+              </label>
+              <div class="flex gap-2">
+                <input
+                  v-model.number="goalTarget"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  class="w-20 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base tabular-nums text-slate-100 focus:border-teal-400 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  :disabled="savingGoal"
+                  class="flex-1 cursor-pointer rounded-lg border border-teal-400/30 bg-teal-400/10 px-3 py-2 text-sm font-medium text-teal-200 transition hover:bg-teal-400/20 disabled:opacity-50"
+                  @click="saveGoal"
+                >
+                  Set goal
+                </button>
+              </div>
+            </div>
+
+            <p v-if="!goals.length" class="text-base text-slate-500">No goal set yet.</p>
+
+            <ul v-else class="space-y-3">
+              <li v-for="goal in goals" :key="goal.year">
+                <div class="mb-1 flex justify-between text-base">
+                  <span class="font-medium text-slate-200">{{ goal.year }}</span>
+                  <span class="text-slate-400">
+                    {{ goal.booksFinished }} / {{ goal.targetBooks }} books
+                  </span>
+                </div>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-800">
+                  <div
+                    class="h-full rounded-full bg-teal-400 transition-all"
+                    :style="{ width: goalPercent(goal) + '%' }"
+                  />
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div
+            v-if="userId && stats.length"
+            class="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md"
+          >
+            <h2 class="mb-3 text-base font-semibold uppercase tracking-wide text-slate-400">
+              Reading stats by year
+            </h2>
+            <ul class="space-y-4">
+              <li
+                v-for="row in stats"
+                :key="row.year"
+                class="border-t border-white/5 pt-3 first:border-0 first:pt-0"
+              >
+                <div class="flex items-baseline justify-between">
+                  <span class="text-lg font-semibold tabular-nums text-slate-100">
+                    {{ row.year }}
+                  </span>
+                  <span class="text-sm text-teal-300">
+                    {{ row.booksFinished }} {{ row.booksFinished === 1 ? "book" : "books" }}
+                  </span>
+                </div>
+                <dl class="mt-2 space-y-1 text-sm">
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-slate-500">Pages</dt>
+                    <dd class="tabular-nums text-slate-300">
+                      {{ row.totalPages.toLocaleString() }}
+                    </dd>
+                  </div>
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-slate-500">Avg rating</dt>
+                    <dd class="tabular-nums text-slate-300">{{ row.averageRating ?? "—" }}</dd>
+                  </div>
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-slate-500">Top genre</dt>
+                    <dd class="truncate text-slate-300">{{ row.topGenre ?? "—" }}</dd>
+                  </div>
+                </dl>
+              </li>
+            </ul>
+          </div>
+
+          <div
+            v-if="userId && picks.length"
+            class="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md"
+          >
+            <h2 class="mb-1 text-sm font-semibold uppercase tracking-wider text-slate-500">
+              Recommended for you
+            </h2>
+            <p class="mb-4 text-sm text-slate-500">
+              Books sharing genres with the ones you finished, and not on any of your shelves.
+            </p>
+            <ul class="space-y-2">
+              <li
+                v-for="pick in picks"
+                :key="pick.id"
+                class="rounded-lg border border-white/5 bg-slate-900/40 px-3 py-2"
+              >
+                <p class="text-base font-medium text-slate-100">{{ pick.title }}</p>
+                <p class="text-sm text-slate-400">{{ pick.author }}</p>
+                <p class="mt-1 text-sm text-teal-300/80">{{ pick.matchedGenres.join(", ") }}</p>
+              </li>
+            </ul>
+          </div>
+        </aside>
+
+        <div>
+          <form
+            v-if="userId"
+            @submit.prevent="addBook"
+            class="mb-10 grid gap-3 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md sm:grid-cols-[1fr_1fr_110px_150px_auto]"
+          >
             <input
-              v-model.number="goalTarget"
-              type="number"
-              min="1"
-              max="1000"
-              class="mt-1 block w-28 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-slate-100"
+              v-model="form.title"
+              required
+              placeholder="Title"
+              class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
             />
-          </label>
-          <button
-            type="button"
-            :disabled="savingGoal"
-            class="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
-            @click="saveGoal"
+            <input
+              v-model="form.author"
+              required
+              placeholder="Author"
+              class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
+            />
+            <input
+              v-model.number="form.year"
+              type="number"
+              min="0"
+              max="9999"
+              placeholder="Year"
+              class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
+            />
+            <input
+              v-model="form.isbn"
+              placeholder="ISBN"
+              class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
+            />
+            <button
+              type="submit"
+              :disabled="isSubmitting"
+              class="rounded-lg cursor-pointer bg-teal-500 px-5 py-2 text-base font-semibold text-slate-950 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {{ isSubmitting ? "Adding..." : "Add book" }}
+            </button>
+          </form>
+
+          <form
+            @submit.prevent="findBookById"
+            class="mb-8 flex gap-3 rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-md"
           >
-            Set goal
-          </button>
+            <input
+              v-model="bookId"
+              placeholder="Search book by id…"
+              class="flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
+            />
+            <button
+              type="submit"
+              :disabled="isSubmittingBook"
+              class="inline-flex items-center gap-2 cursor-pointer rounded-lg bg-teal-500 px-5 py-2 text-base font-semibold text-slate-950 transition hover:opacity-90"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              {{ isSubmittingBook ? "Search..." : "Search" }}
+            </button>
+          </form>
+
+          <BookCard
+            v-if="findedBook"
+            :book="findedBook"
+            :can-delete="findedBook.ownerId !== null && findedBook.ownerId === userId"
+            :can-shelve="!!userId"
+            :custom-shelves="customShelves"
+            class="mb-8"
+            @delete="removeFindedBook"
+            @shelved="onShelved"
+          />
+
+          <p
+            v-if="!userId"
+            class="mb-10 rounded-xl border border-white/10 bg-white/5 p-4 text-center text-base text-slate-400 backdrop-blur-md"
+          >
+            Sign in to add books to the catalogue.
+          </p>
+
+          <div
+            class="mb-4 flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1 backdrop-blur-md"
+          >
+            <button
+              v-for="t in ['all', 'mine'] as const"
+              :key="t"
+              :disabled="t === 'mine' && !userId"
+              @click="tab = t"
+              class="flex-1 cursor-pointer rounded-lg px-4 py-2 text-base font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
+              :class="tab === t ? 'bg-teal-500 text-slate-950' : 'text-slate-300 hover:bg-white/10'"
+            >
+              {{ t === "all" ? "All books" : "My books" }}
+            </button>
+          </div>
+
+          <div class="mb-4 flex flex-wrap items-center gap-3">
+            <input
+              v-model="listSearch"
+              placeholder="Filter by title…"
+              class="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
+            />
+            <select
+              v-model="genre"
+              class="cursor-pointer rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 focus:border-teal-400 focus:outline-none"
+            >
+              <option value="">All genres</option>
+              <option v-for="g in allGenres" :key="g.id" :value="g.slug">
+                {{ g.name }} ({{ g.bookCount }})
+              </option>
+            </select>
+            <select
+              v-model="sort"
+              class="cursor-pointer rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 focus:border-teal-400 focus:outline-none"
+            >
+              <option value="createdAt">Sort: Newest</option>
+              <option value="title">Sort: Title</option>
+              <option value="year">Sort: Year</option>
+            </select>
+            <button
+              @click="order = order === 'asc' ? 'desc' : 'asc'"
+              class="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-base text-slate-200 transition hover:bg-white/10"
+            >
+              {{ order === "asc" ? "↑ Asc" : "↓ Desc" }}
+            </button>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+            <BookCard
+              v-for="book in books"
+              :key="book.id"
+              :book="book"
+              :can-delete="book.ownerId !== null && book.ownerId === userId"
+              :can-shelve="!!userId"
+              :custom-shelves="customShelves"
+              @delete="removeBook"
+              @shelved="onShelved"
+            />
+          </div>
+
+          <p v-if="books.length === 0" class="mt-10 text-center text-base text-slate-500">
+            No books match your filters.
+          </p>
+
+          <div v-if="totalPages > 1" class="mt-8 flex items-center justify-center gap-4">
+            <button
+              :disabled="page <= 1"
+              @click="page--"
+              class="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-base text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ← Prev
+            </button>
+            <span class="text-base text-slate-400">Page {{ page }} of {{ totalPages }}</span>
+            <button
+              :disabled="page >= totalPages"
+              @click="page++"
+              class="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-base text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next →
+            </button>
+          </div>
         </div>
-
-        <p v-if="!goals.length" class="text-sm text-slate-500">No goal set yet.</p>
-
-        <ul v-else class="space-y-3">
-          <li v-for="goal in goals" :key="goal.year">
-            <div class="mb-1 flex justify-between text-sm">
-              <span class="font-medium text-slate-200">{{ goal.year }}</span>
-              <span class="text-slate-400">
-                {{ goal.booksFinished }} / {{ goal.targetBooks }} books
-              </span>
-            </div>
-            <div class="h-2 overflow-hidden rounded-full bg-slate-800">
-              <div
-                class="h-full rounded-full bg-gradient-to-r from-sky-400 to-fuchsia-400 transition-all"
-                :style="{ width: goalPercent(goal) + '%' }"
-              />
-            </div>
-          </li>
-        </ul>
-      </div>
-
-      <div
-        v-if="userId && picks.length"
-        class="mb-8 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md"
-      >
-        <h2 class="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">
-          Recommended for you
-        </h2>
-        <p class="mb-4 text-xs text-slate-500">
-          Books sharing genres with the ones you finished, and not on any of your shelves.
-        </p>
-        <ul class="grid gap-2 sm:grid-cols-2">
-          <li
-            v-for="pick in picks"
-            :key="pick.id"
-            class="rounded-lg border border-white/5 bg-slate-900/40 px-3 py-2"
-          >
-            <p class="text-sm font-medium text-slate-100">{{ pick.title }}</p>
-            <p class="text-xs text-slate-400">{{ pick.author }}</p>
-            <p class="mt-1 text-xs text-sky-300/80">{{ pick.matchedGenres.join(", ") }}</p>
-          </li>
-        </ul>
-      </div>
-
-      <div
-        v-if="userId && stats.length"
-        class="mb-8 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md"
-      >
-        <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
-          Reading stats by year
-        </h2>
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-xs uppercase tracking-wide text-slate-500">
-              <th class="pb-2 font-medium">Year</th>
-              <th class="pb-2 font-medium">Books</th>
-              <th class="pb-2 font-medium">Pages</th>
-              <th class="pb-2 font-medium">Avg rating</th>
-              <th class="pb-2 font-medium">Top genre</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in stats" :key="row.year" class="border-t border-white/5">
-              <td class="py-2 font-medium text-slate-200">{{ row.year }}</td>
-              <td class="py-2 text-slate-300">{{ row.booksFinished }}</td>
-              <td class="py-2 text-slate-300">{{ row.totalPages.toLocaleString() }}</td>
-              <td class="py-2 text-slate-300">{{ row.averageRating ?? "—" }}</td>
-              <td class="py-2 text-slate-300">{{ row.topGenre ?? "—" }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p
-        v-if="!userId"
-        class="mb-10 rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm text-slate-400 backdrop-blur-md"
-      >
-        Sign in to add books to the catalogue.
-      </p>
-
-      <div
-        class="mb-4 flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1 backdrop-blur-md"
-      >
-        <button
-          v-for="t in ['all', 'mine'] as const"
-          :key="t"
-          :disabled="t === 'mine' && !userId"
-          @click="tab = t"
-          class="flex-1 cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
-          :class="
-            tab === t
-              ? 'bg-gradient-to-br from-sky-400 to-fuchsia-400 text-slate-950'
-              : 'text-slate-300 hover:bg-white/10'
-          "
-        >
-          {{ t === "all" ? "All books" : "My books" }}
-        </button>
-      </div>
-
-      <div class="mb-4 flex flex-wrap items-center gap-3">
-        <input
-          v-model="listSearch"
-          placeholder="Filter by title…"
-          class="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
-        />
-        <select
-          v-model="genre"
-          class="cursor-pointer rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-sky-400 focus:outline-none"
-        >
-          <option value="">All genres</option>
-          <option v-for="g in allGenres" :key="g.id" :value="g.slug">
-            {{ g.name }} ({{ g.bookCount }})
-          </option>
-        </select>
-        <select
-          v-model="sort"
-          class="cursor-pointer rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-sky-400 focus:outline-none"
-        >
-          <option value="createdAt">Sort: Newest</option>
-          <option value="title">Sort: Title</option>
-          <option value="year">Sort: Year</option>
-        </select>
-        <button
-          @click="order = order === 'asc' ? 'desc' : 'asc'"
-          class="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"
-        >
-          {{ order === "asc" ? "↑ Asc" : "↓ Desc" }}
-        </button>
-      </div>
-
-      <div class="grid gap-4 sm:grid-cols-2">
-        <BookCard
-          v-for="book in books"
-          :key="book.id"
-          :book="book"
-          :can-delete="book.ownerId !== null && book.ownerId === userId"
-          :can-shelve="!!userId"
-          @delete="removeBook"
-          @shelved="onShelved"
-        />
-      </div>
-
-      <p v-if="books.length === 0" class="mt-10 text-center text-sm text-slate-500">
-        No books match your filters.
-      </p>
-
-      <div v-if="totalPages > 1" class="mt-8 flex items-center justify-center gap-4">
-        <button
-          :disabled="page <= 1"
-          @click="page--"
-          class="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          ← Prev
-        </button>
-        <span class="text-sm text-slate-400">Page {{ page }} of {{ totalPages }}</span>
-        <button
-          :disabled="page >= totalPages"
-          @click="page++"
-          class="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Next →
-        </button>
       </div>
     </div>
   </main>

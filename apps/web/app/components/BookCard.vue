@@ -1,75 +1,77 @@
 <script setup lang="ts">
 import type { Book } from "@library/contracts";
 
-withDefaults(defineProps<{ book: Book; canDelete?: boolean; canShelve?: boolean }>(), {
-  canDelete: false,
-  canShelve: false,
-});
+withDefaults(
+  defineProps<{
+    book: Book;
+    canDelete?: boolean;
+    canShelve?: boolean;
+    customShelves?: { id: string; name: string }[];
+  }>(),
+  { canDelete: false, canShelve: false, customShelves: () => [] },
+);
 const emit = defineEmits<{ delete: [id: string]; shelved: [] }>();
+
+const SHELF_LABEL: Record<string, string> = {
+  to_read: "To read",
+  reading: "Reading",
+  finished: "Finished",
+};
 </script>
 
 <template>
-  <div
-    class="group relative rounded-xl border border-white/10 bg-white/5 p-5 shadow-lg backdrop-blur-md transition hover:border-white/20 hover:bg-white/10"
+  <article
+    class="group flex flex-col rounded-xl border border-white/10 bg-slate-900/40 p-5 transition hover:border-teal-400/30 hover:bg-slate-900/70"
   >
-    <button
-      v-if="canDelete"
-      @click="emit('delete', book.id)"
-      class="absolute right-3 top-3 cursor-pointer rounded-md p-1 text-slate-500 opacity-0 transition hover:bg-rose-500/20 hover:text-rose-300 group-hover:opacity-100"
-      aria-label="Delete book"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-4 w-4"
-        viewBox="0 0 20 20"
-        fill="currentColor"
+    <div class="flex items-start justify-between gap-3">
+      <h2 class="text-xl font-semibold leading-snug text-slate-50">{{ book.title }}</h2>
+
+      <span
+        v-if="book.shelfKind && SHELF_LABEL[book.shelfKind]"
+        class="shrink-0 rounded-full bg-teal-400/15 px-2.5 py-1 text-xs font-medium text-teal-200"
       >
-        <path
-          fill-rule="evenodd"
-          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-          clip-rule="evenodd"
-        />
-      </svg>
-    </button>
+        {{ SHELF_LABEL[book.shelfKind] }}
+      </span>
 
-    <h2 class="pr-6 text-lg font-semibold text-slate-100 transition group-hover:text-white">
-      {{ book.title }}
-    </h2>
+      <button
+        v-else-if="canDelete"
+        class="shrink-0 cursor-pointer rounded-md px-2 text-lg leading-none text-slate-600 opacity-0 transition hover:text-rose-300 group-hover:opacity-100"
+        aria-label="Delete book"
+        @click="emit('delete', book.id)"
+      >
+        ×
+      </button>
+    </div>
 
-    <p class="mt-1 text-sm text-slate-400">
+    <p class="mt-1.5 text-base text-slate-400">
       {{ book.author }}<span v-if="book.year"> · {{ book.year }}</span>
+      <span v-if="book.pages"> · {{ book.pages }} p.</span>
     </p>
-    <p v-if="book.isbn" class="mt-2 font-mono text-xs text-slate-500">ISBN {{ book.isbn }}</p>
 
-    <div v-if="book.genres.length" class="mt-2 flex flex-wrap gap-1">
+    <div v-if="book.genres.length" class="mt-3 flex flex-wrap gap-1.5">
       <span
         v-for="genre in book.genres"
         :key="genre.id"
-        class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-400"
+        class="rounded-md bg-white/5 px-2 py-0.5 text-xs text-slate-400"
       >
         {{ genre.name }}
       </span>
     </div>
 
-    <div class="mt-4 flex items-center gap-2 border-t border-white/5 pt-3">
-      <span
-        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
-        :class="canDelete ? 'bg-sky-400/20 text-sky-300' : 'bg-white/10 text-slate-400'"
-      >
-        {{ book.ownerName ? book.ownerName.charAt(0).toUpperCase() : "—" }}
-      </span>
-      <span class="text-xs text-slate-500">
-        <template v-if="canDelete">Added by you</template>
-        <template v-else-if="book.ownerName">Added by {{ book.ownerName }}</template>
-        <template v-else>From the seed catalogue</template>
-      </span>
+    <div class="mt-auto pt-4 text-xs text-slate-600">
+      <span v-if="book.isbn" class="font-mono">{{ book.isbn }}</span>
+      <span v-if="book.isbn && book.ownerName"> · </span>
+      <span v-if="canDelete">added by you</span>
+      <span v-else-if="book.ownerName">added by {{ book.ownerName }}</span>
     </div>
 
     <ShelfPicker
       v-if="canShelve"
       :book-id="book.id"
       :current="book.shelfKind"
+      :custom-shelves="customShelves"
+      :member-of="book.customShelfIds"
       @changed="emit('shelved')"
     />
-  </div>
+  </article>
 </template>
