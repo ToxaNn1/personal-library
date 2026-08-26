@@ -10,10 +10,23 @@ const limit = ref(12);
 const sort = ref<"title" | "year" | "createdAt">("createdAt");
 const order = ref<"asc" | "desc">("desc");
 const listSearch = ref("");
+const searchInput = ref("");
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+watch(searchInput, (value) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    listSearch.value = value;
+  }, 300);
+});
 const tab = ref<"all" | "mine">("all");
 const genre = ref("");
 
-const { data, refresh } = await useAsyncData(
+const {
+  data,
+  refresh,
+  status: booksStatus,
+} = await useAsyncData(
   "books",
   () =>
     $orpc.listBooks({
@@ -29,6 +42,7 @@ const { data, refresh } = await useAsyncData(
 );
 
 const books = computed(() => data.value?.items ?? []);
+const isLoadingBooks = computed(() => booksStatus.value === "pending");
 const total = computed(() => data.value?.meta.total ?? 0);
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit.value)));
 
@@ -41,7 +55,15 @@ const form = reactive({
   author: "",
   year: null as number | null,
   isbn: "",
+  pages: null as number | null,
+  genreIds: [] as string[],
 });
+
+function toggleGenre(id: string) {
+  const index = form.genreIds.indexOf(id);
+  if (index === -1) form.genreIds.push(id);
+  else form.genreIds.splice(index, 1);
+}
 
 const bookId = ref("");
 const findedBook = ref<null | Book>(null);
@@ -60,11 +82,15 @@ async function addBook() {
       author: form.author.trim(),
       year: form.year,
       isbn: form.isbn.trim() || null,
+      pages: form.pages,
+      genreIds: form.genreIds.length ? [...form.genreIds] : undefined,
     });
     form.title = "";
     form.author = "";
     form.year = null;
     form.isbn = "";
+    form.pages = null;
+    form.genreIds = [];
     await refresh();
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Failed to add book";
@@ -89,8 +115,9 @@ async function findBookById() {
   }
 }
 
-function removeFindedBook(id: string) {
+async function removeFindedBook(id: string) {
   if (!id) return;
+  await removeBook(id);
   findedBook.value = null;
 }
 
@@ -393,39 +420,71 @@ async function removeBook(id: string) {
           <form
             v-if="userId"
             @submit.prevent="addBook"
-            class="mb-10 grid gap-3 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md sm:grid-cols-[1fr_1fr_110px_150px_auto]"
+            class="mb-10 space-y-3 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md"
           >
-            <input
-              v-model="form.title"
-              required
-              placeholder="Title"
-              class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
-            />
-            <input
-              v-model="form.author"
-              required
-              placeholder="Author"
-              class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
-            />
-            <input
-              v-model.number="form.year"
-              type="number"
-              min="0"
-              max="9999"
-              placeholder="Year"
-              class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
-            />
-            <input
-              v-model="form.isbn"
-              placeholder="ISBN"
-              class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
-            />
+            <div class="grid gap-3 sm:grid-cols-[1fr_1fr_100px_100px_150px]">
+              <input
+                v-model="form.title"
+                required
+                placeholder="Title"
+                class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
+              />
+              <input
+                v-model="form.author"
+                required
+                placeholder="Author"
+                class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
+              />
+              <input
+                v-model.number="form.year"
+                type="number"
+                min="0"
+                max="9999"
+                placeholder="Year"
+                class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
+              />
+              <input
+                v-model.number="form.pages"
+                type="number"
+                min="1"
+                max="50000"
+                placeholder="Pages"
+                class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
+              />
+              <input
+                v-model="form.isbn"
+                placeholder="ISBN"
+                class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
+              />
+            </div>
+
+            <div v-if="allGenres.length" class="flex flex-wrap items-center gap-2">
+              <span class="text-sm text-slate-500">Genres</span>
+              <button
+                v-for="g in allGenres"
+                :key="g.id"
+                type="button"
+                class="cursor-pointer rounded-full border px-3 py-1 text-sm transition"
+                :class="
+                  form.genreIds.includes(g.id)
+                    ? 'border-teal-400/60 bg-teal-400/15 text-teal-200'
+                    : 'border-white/10 text-slate-400 hover:border-teal-400/40 hover:text-teal-200'
+                "
+                @click="toggleGenre(g.id)"
+              >
+                {{ g.name }}
+              </button>
+              <span v-if="form.genreIds.length > 5" class="text-sm text-rose-300">
+                max 5 genres
+              </span>
+            </div>
+
             <button
               type="submit"
-              :disabled="isSubmitting"
-              class="rounded-lg cursor-pointer bg-teal-500 px-5 py-2 text-base font-semibold text-slate-950 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="isSubmitting || form.genreIds.length > 5"
+              class="cursor-pointer rounded-lg bg-teal-500 px-5 py-2 text-base font-semibold text-slate-950 transition hover:bg-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {{ isSubmitting ? "Adding..." : "Add book" }}
+              {{ isSubmitting ? "Adding…" : "Add book" }}
             </button>
           </form>
 
@@ -494,7 +553,7 @@ async function removeBook(id: string) {
 
           <div class="mb-4 flex flex-wrap items-center gap-3">
             <input
-              v-model="listSearch"
+              v-model="searchInput"
               placeholder="Filter by title…"
               class="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-teal-400 focus:outline-none"
             />
@@ -523,7 +582,22 @@ async function removeBook(id: string) {
             </button>
           </div>
 
-          <div class="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+          <div
+            v-if="isLoadingBooks && !books.length"
+            class="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3"
+          >
+            <div
+              v-for="n in limit"
+              :key="n"
+              class="h-52 animate-pulse rounded-xl border border-white/5 bg-slate-900/40"
+            />
+          </div>
+
+          <div
+            v-else
+            class="grid gap-4 transition-opacity sm:grid-cols-2 2xl:grid-cols-3"
+            :class="isLoadingBooks ? 'pointer-events-none opacity-50' : ''"
+          >
             <BookCard
               v-for="book in books"
               :key="book.id"
@@ -536,13 +610,16 @@ async function removeBook(id: string) {
             />
           </div>
 
-          <p v-if="books.length === 0" class="mt-10 text-center text-base text-slate-500">
+          <p
+            v-if="!isLoadingBooks && books.length === 0"
+            class="mt-10 text-center text-base text-slate-500"
+          >
             No books match your filters.
           </p>
 
           <div v-if="totalPages > 1" class="mt-8 flex items-center justify-center gap-4">
             <button
-              :disabled="page <= 1"
+              :disabled="page <= 1 || isLoadingBooks"
               @click="page--"
               class="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-base text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
             >
@@ -550,7 +627,7 @@ async function removeBook(id: string) {
             </button>
             <span class="text-base text-slate-400">Page {{ page }} of {{ totalPages }}</span>
             <button
-              :disabled="page >= totalPages"
+              :disabled="page >= totalPages || isLoadingBooks"
               @click="page++"
               class="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-base text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
             >

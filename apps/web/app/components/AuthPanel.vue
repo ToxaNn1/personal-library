@@ -13,22 +13,26 @@ async function submit() {
   isSubmitting.value = true;
   error.value = null;
 
-  const result =
-    mode.value === "sign-up"
-      ? await $auth.signUp.email({ name: form.name, email: form.email, password: form.password })
-      : await $auth.signIn.email({ email: form.email, password: form.password });
+  try {
+    const result =
+      mode.value === "sign-up"
+        ? await $auth.signUp.email({ name: form.name, email: form.email, password: form.password })
+        : await $auth.signIn.email({ email: form.email, password: form.password });
 
-  isSubmitting.value = false;
+    if (result.error) {
+      error.value = result.error.message ?? "Authentication failed";
+      return;
+    }
 
-  if (result.error) {
-    error.value = result.error.message ?? "Authentication failed";
-    return;
+    form.name = "";
+    form.email = "";
+    form.password = "";
+    emit("changed");
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Authentication failed";
+  } finally {
+    isSubmitting.value = false;
   }
-
-  form.name = "";
-  form.email = "";
-  form.password = "";
-  emit("changed");
 }
 
 async function signOut() {
