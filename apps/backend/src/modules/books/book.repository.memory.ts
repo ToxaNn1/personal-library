@@ -43,6 +43,7 @@ export class InMemoryBookRepository implements BookRepository {
       createdAt: new Date(),
       ownerName: null,
       shelfKind: null,
+      customShelfIds: [],
       genres: [],
       ...data,
     };

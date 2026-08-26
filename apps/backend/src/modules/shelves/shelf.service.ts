@@ -82,6 +82,8 @@ export class ShelfService {
   async deleteShelf(userId: string, shelfId: string): Promise<void> {
     const deleted = await this.repo.deleteCustom(userId, shelfId);
     if (!deleted) throw new NotFoundError("Custom shelf not found");
+
+    await this.bookCache.invalidate();
   }
 
   private async ownCustomShelf(userId: string, shelfId: string): Promise<ShelfEntity> {
@@ -99,6 +101,7 @@ export class ShelfService {
     if (!book) throw new NotFoundError(`Book ${bookId} not found`);
 
     await this.repo.addToShelf(userId, shelfId, bookId);
+    await this.bookCache.invalidate();
     return this.ownCustomShelf(userId, shelfId);
   }
 
@@ -107,6 +110,8 @@ export class ShelfService {
 
     const removed = await this.repo.removeFromShelf(userId, shelfId, bookId);
     if (!removed) throw new NotFoundError("This book is not on that shelf");
+
+    await this.bookCache.invalidate();
   }
 
   async removeBook(userId: string, bookId: string): Promise<void> {

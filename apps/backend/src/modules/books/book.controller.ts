@@ -16,6 +16,7 @@ export function toBookDto(book: BookEntity): Book {
     ownerId: book.ownerId,
     ownerName: book.ownerName,
     shelfKind: (book.shelfKind as Book["shelfKind"]) ?? null,
+    customShelfIds: book.customShelfIds,
   };
 }
 

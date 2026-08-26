@@ -9,6 +9,7 @@ export interface BookEntity {
   ownerId: string | null;
   ownerName: string | null;
   shelfKind: string | null;
+  customShelfIds: string[];
   createdAt: Date;
 }
 

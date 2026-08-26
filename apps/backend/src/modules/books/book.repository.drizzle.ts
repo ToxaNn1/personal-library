@@ -28,7 +28,16 @@ const SORT_COLUMNS = {
   createdAt: books.createdAt,
 } as const;
 
-const BOOK_FIELDS = {
+function customShelfIds(viewerId: string | undefined) {
+  if (!viewerId) return sql<string[]>`'[]'::json`;
+  return sql<string[]>`coalesce(
+    (select json_agg(si.shelf_id)
+     from shelf_items si
+     where si.book_id = ${books.id} and si.user_id = ${viewerId} and si.kind = 'custom'),
+    '[]'::json)`;
+}
+
+const bookFields = (viewerId: string | undefined) => ({
   id: books.id,
   title: books.title,
   author: books.author,
@@ -43,8 +52,9 @@ const BOOK_FIELDS = {
   ownerId: books.ownerId,
   ownerName: user.name,
   shelfKind: shelves.kind,
+  customShelfIds: customShelfIds(viewerId),
   createdAt: books.createdAt,
-};
+});
 
 function toTsQuery(search: string): string | null {
   const terms = search
@@ -89,7 +99,7 @@ export class DrizzleBookRepository implements BookRepository {
     const orderBy = params.order === "asc" ? asc(column) : desc(column);
 
     const items = await this.db
-      .select(BOOK_FIELDS)
+      .select(bookFields(params.viewerId))
       .from(books)
       .leftJoin(user, eq(books.ownerId, user.id))
       .leftJoin(shelfItems, and(eq(shelfItems.bookId, books.id), viewerShelfJoin(params.viewerId)))
@@ -139,7 +149,7 @@ export class DrizzleBookRepository implements BookRepository {
 
   async findById(id: string, viewerId?: string): Promise<BookEntity | null> {
     const [book] = await this.db
-      .select(BOOK_FIELDS)
+      .select(bookFields(viewerId))
       .from(books)
       .leftJoin(user, eq(books.ownerId, user.id))
       .leftJoin(shelfItems, and(eq(shelfItems.bookId, books.id), viewerShelfJoin(viewerId)))

@@ -16,6 +16,7 @@ export const BookSchema = z.object({
   ownerId: z.string().nullable(),
   ownerName: z.string().nullable(),
   shelfKind: ShelfKindSchema.nullable(),
+  customShelfIds: z.array(z.string().uuid()),
   pages: z.number().int().nullable(),
   genres: z.array(z.object({ id: z.string().uuid(), name: z.string(), slug: z.string() })),
 });
@@ -66,6 +67,7 @@ export const ShelfBookSchema = BookSchema.omit({
   ownerId: true,
   ownerName: true,
   shelfKind: true,
+  customShelfIds: true,
   genres: true,
 }).extend({
   addedAt: z.string(),

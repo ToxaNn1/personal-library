@@ -146,7 +146,7 @@ function clientKey(c: Context<{ Variables: Variables }>): string {
 }
 
 const limitWrite = (c: Context<{ Variables: Variables }>) =>
-  rateLimiter.check("write", clientKey(c), { limit: 20, windowSec: 60 });
+  rateLimiter.check("write", clientKey(c), { limit: 60, windowSec: 60 });
 
 const rateLimitRpcWrites: MiddlewareHandler<{ Variables: Variables }> = async (c, next) => {
   const procedure = c.req.path.replace("/rpc/", "");

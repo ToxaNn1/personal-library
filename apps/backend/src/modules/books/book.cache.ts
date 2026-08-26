@@ -2,7 +2,7 @@ import type { Cache } from "../../cache.js";
 
 const VERSION_KEY = "books:ver";
 
-const CACHED_SHAPE_VERSION = 2;
+const CACHED_SHAPE_VERSION = 3;
 
 export class BookCache {
   constructor(private readonly cache: Cache) {}

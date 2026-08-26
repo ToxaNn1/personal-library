@@ -52,7 +52,7 @@ export class ConflictError extends HttpException {
 export class RateLimitError extends HttpException {
   constructor(
     public readonly retryAfterSeconds: number,
-    message = "Too many requests",
+    message = "Too many changes at once — please wait a few seconds",
   ) {
     super(429, "RATE_LIMITED", message);
   }
